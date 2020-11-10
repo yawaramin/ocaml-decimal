@@ -236,8 +236,8 @@ let to_tuple = function
   | Reg { sign; coef; exp } -> Sign.to_int sign, coef, exp
 
 let sign = function
-  | Inf sign -> Sign.to_int sign
   | NaN -> 1
+  | Inf sign
   | Reg { sign; _ } -> Sign.to_int sign
 
 let adjust exp coef = exp + String.length coef - 1
@@ -293,7 +293,7 @@ let compare t1 t2 = match t1, t2 with
     | -1 -> -Sign.to_int sign1
     | _ -> invalid_arg "compare: internal error"
     end
-    
+
   (* Signs are messed up, this shouldn't happen *)
   | _ ->
     invalid_arg "compare: internal error"
@@ -301,8 +301,7 @@ let compare t1 t2 = match t1, t2 with
 let negate = function
   | NaN as t -> t
   | Inf sign -> Inf (Sign.negate sign)
-  | Reg { coef = "0"; _ } as t -> t
-  | Reg { sign; coef; exp } -> Reg { sign = Sign.negate sign; coef; exp }
+  | Reg reg -> Reg { reg with sign = Sign.negate reg.sign }
 
 let abs = function
   | Reg { sign = Neg; coef; exp } -> Reg { sign = Pos; coef; exp }
