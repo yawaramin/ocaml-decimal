@@ -37,34 +37,16 @@ type flag =
 | Underflow
 
 module Sign = struct
-  let pos = 0
-  let neg = 1
+  type t = Pos | Neg
 
   let of_string = function
-    | "-" -> neg
-    | "" | "+" -> pos
+    | "-" -> Neg
+    | "" | "+" -> Pos
     | s -> invalid_arg ("Sign.of_string: invalid sign: " ^ s)
 
-  let to_int = function
-    | 1 -> -1
-    | 0 -> 1
-    | s -> invalid_arg ("Sign.to_int: invalid value: " ^ string_of_int s)
-
-  let to_string = function
-    | 0 ->
-      ""
-    | 1 ->
-      "-"
-    | s ->
-      invalid_arg ("Sign.to_string: invalid value: " ^ string_of_int s)
-
-  let negate = function
-    | 0 ->
-      neg
-    | 1 ->
-      pos
-    | s ->
-      invalid_arg ("Sign.negate: invalid value: " ^ string_of_int s)
+  let to_int = function Neg -> -1 | Pos -> 1
+  let to_string = function Pos -> "" | Neg -> "-"
+  let negate = function Pos -> Neg | Neg -> Pos
 end
 
 module Of_string = struct
@@ -108,12 +90,12 @@ module Of_string = struct
   let nan = Str.regexp "^NaN$"
 end
 
-type t = Reg of { sign : int; coef : string; exp : int } | Inf | NaN
+type t = Reg of { sign : Sign.t; coef : string; exp : int } | Inf | NaN
 
 let inf = Inf
 let nan = NaN
-let one = Reg { sign = 0; coef = "1"; exp = 0 }
-let zero = Reg { sign = 0; coef = "0"; exp = 0 }
+let one = Reg { sign = Pos; coef = "1"; exp = 0 }
+let zero = Reg { sign = Pos; coef = "0"; exp = 0 }
 
 let get_sign value = Sign.of_string (Str.matched_group 1 value)
 let get_fracpart value = Str.matched_group 3 value
@@ -158,7 +140,7 @@ let of_string value =
     invalid_arg ("of_string: invalid literal: " ^ value)
 
 let of_int value =
-  let sign = if value >= 0 then Sign.pos else Sign.neg in
+  let sign = if value >= 0 then Sign.Pos else Neg in
   Reg { sign; coef = string_of_int (abs value); exp = 0 }
 
 let of_float value =
@@ -169,7 +151,7 @@ let of_float value =
   else if value = 0. then
     zero
   else
-    let sign = if Float.sign_bit value then Sign.neg else Sign.pos in
+    let sign = if Float.sign_bit value then Sign.Neg else Pos in
     let str = value |> Float.abs |> string_of_float in
     match String.split_on_char '.' str with
     | [coef; ""] ->
@@ -185,7 +167,7 @@ let to_ratio = function
   | Inf -> invalid_arg "to_ratio: cannot handle Infinity"
   | NaN -> invalid_arg "to_ratio: cannot handle NaN"
   | Reg { coef = "0"; _ } -> 0, 1
-  | Reg { sign; coef; exp } -> failwith "TODO"
+  | Reg _ -> failwith "TODO"
 
 let to_string ?(eng=false) ?(context=Context.default ()) = function
   | Inf -> "Inf"
@@ -235,7 +217,7 @@ let to_string ?(eng=false) ?(context=Context.default ()) = function
 let to_tuple = function
   | Inf -> 1, "Inf", 0
   | NaN -> 1, "NaN", 0
-  | Reg { sign; coef; exp } -> sign, coef, exp
+  | Reg { sign; coef; exp } -> Sign.to_int sign, coef, exp
 
 let sign = function
   | Inf | NaN -> 1
@@ -266,8 +248,8 @@ let compare t1 t2 = match t1, t2 with
   | Reg { sign = s; _ }, Reg { coef = "0"; _ } -> Sign.to_int s
 
   (* Simple cases of different signs *)
-  | Reg { sign = 1 as s1; _ }, Reg { sign = 0 as s2; _ }
-  | Reg { sign = 0 as s1; _ }, Reg { sign = 1 as s2; _ } ->
+  | Reg { sign = Neg as s1; _ }, Reg { sign = Pos as s2; _ }
+  | Reg { sign = Pos as s1; _ }, Reg { sign = Neg as s2; _ } ->
     compare (Sign.to_int s1) (Sign.to_int s2)
 
   (* Same sign *)
@@ -293,12 +275,12 @@ let compare t1 t2 = match t1, t2 with
     invalid_arg "compare: internal error"
 
 let negate = function
-  | (Inf | NaN) as t
+  | (Inf | NaN) as t -> t
   | Reg { coef = "0"; _ } as t -> t
   | Reg { sign; coef; exp } -> Reg { sign = Sign.negate sign; coef; exp }
 
 let abs = function
-  | Reg { sign = 1; coef; exp } -> Reg { sign = 0; coef; exp }
+  | Reg { sign = Neg; coef; exp } -> Reg { sign = Pos; coef; exp }
   | t -> t
 
 let ( < ) t1 t2 = compare t1 t2 = -1
@@ -306,4 +288,3 @@ let ( > ) t1 t2 = compare t1 t2 = 1
 let ( <= ) t1 t2 = compare t1 t2 <= 0
 let ( >= ) t1 t2 = compare t1 t2 >= 0
 let ( = ) t1 t2 = compare t1 t2 = 0
-
