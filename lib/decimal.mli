@@ -8,30 +8,46 @@ module Context : sig
   | Half_down
   | Zero_five_up
 
+  type flag =
+  | Clamped
+  | Invalid_operation
+  | Conversion_syntax
+  | Division_impossible
+  | Division_undefined
+  | Inexact
+  | Rounded
+  | Subnormal
+  | Overflow
+  | Underflow
+
   type t = {
     prec : int;
+    (** precision, for use in rounding, division, square roots *)
+
     rounding_mode : rounding_mode;
+    (** how to round *)
+
     emax : int;
+    (** maximum exponent *)
+
     emin : int;
+    (** minimum exponent *)
+
     capitals : bool;
+    (** print exponent character as [E] if true else [e] *)
+
     clamp : bool;
+    (** whether to change exponents if too high *)
   }
 
   val default : unit -> t
   val set_default : t -> unit
-end
 
-type flag =
-| Clamped
-| Invalid_operation
-| Conversion_syntax
-| Division_impossible
-| Division_undefined
-| Inexact
-| Rounded
-| Subnormal
-| Overflow
-| Underflow
+  val etiny : t -> int
+
+  val etop : t -> int
+  (** [etop t] is the maximum exponent of context [t]. *)
+end
 
 type t
 
