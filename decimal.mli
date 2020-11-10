@@ -9,9 +9,12 @@ module Context : sig
   | Zero_five_up
 
   type t = {
+    prec : int;
     rounding_mode : rounding_mode;
-    precision : int;
+    emax : int;
+    emin : int;
     capitals : bool;
+    clamp : bool;
   }
 
   val default : unit -> t
@@ -32,7 +35,8 @@ type flag =
 
 type t
 
-val inf : t
+val pos_inf : t
+val neg_inf : t
 val nan : t
 val one : t
 val zero : t

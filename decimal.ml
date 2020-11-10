@@ -9,15 +9,21 @@ module Context = struct
   | Zero_five_up
 
   type t = {
+    prec : int;
     rounding_mode : rounding_mode;
-    precision : int;
+    emax : int;
+    emin : int;
     capitals : bool;
+    clamp : bool;
   }
 
   let default = ref {
+    prec = 32;
     rounding_mode = Half_even;
-    precision = 32;
-    capitals = true
+    emax = 999_999;
+    emin = -999_999;
+    capitals = true;
+    clamp = false;
   }
 
   let set_default = (:=) default
@@ -55,9 +61,9 @@ module Of_string = struct
   let sign_str = {|\([-+]?\)|}
   let digits_str = {|\([0-9]+\)|}
   let dot_str = {|\.|}
+  let leading_zeros = Str.regexp "^0+"
 
   (* Different kinds of numbers that could be matched *)
-  let leading_zeros = Str.regexp "^0+"
 
   let whole = Str.regexp (
     start_str ^
@@ -86,13 +92,19 @@ module Of_string = struct
     digits_str ^ (* 5 *)
     end_str)
 
-  let inf = Str.regexp {|^Inf\(inity\)?$|}
-  let nan = Str.regexp "^NaN$"
+  let inf = Str.regexp (
+    start_str ^
+    sign_str ^ (* 1 *)
+    {|[Ii]nf\(inity\)?$|})
+
+  let nan = Str.regexp "^[Nn]a[Nn]$"
 end
 
-type t = Reg of { sign : Sign.t; coef : string; exp : int } | Inf | NaN
+type reg = { sign : Sign.t; coef : string; exp : int }
+type t = Reg of reg | Inf of Sign.t | NaN
 
-let inf = Inf
+let pos_inf = Inf Pos
+let neg_inf = Inf Neg
 let nan = NaN
 let one = Reg { sign = Pos; coef = "1"; exp = 0 }
 let zero = Reg { sign = Pos; coef = "0"; exp = 0 }
@@ -114,7 +126,7 @@ let of_string value =
   if value = "" || value = "0" then
     zero
   else if Str.string_match Of_string.inf value 0 then
-    inf
+    Inf (get_sign value)
   else if Str.string_match Of_string.nan value 0 then
     nan
   else if Str.string_match Of_string.whole value 0 then
@@ -146,8 +158,10 @@ let of_int value =
 let of_float value =
   if value = Float.nan then
     nan
-  else if value = Float.infinity || value = Float.neg_infinity then
-    inf
+  else if value = Float.infinity then
+    pos_inf
+  else if value = Float.neg_infinity then
+    neg_inf
   else if value = 0. then
     zero
   else
@@ -164,18 +178,20 @@ let of_float value =
 let to_bool = function Reg { coef = "0"; _ } -> false | _ -> true
 
 let to_ratio = function
-  | Inf -> invalid_arg "to_ratio: cannot handle Infinity"
+  | Inf _ -> invalid_arg "to_ratio: cannot handle Infinity"
   | NaN -> invalid_arg "to_ratio: cannot handle NaN"
   | Reg { coef = "0"; _ } -> 0, 1
   | Reg _ -> failwith "TODO"
 
 let to_string ?(eng=false) ?(context=Context.default ()) = function
-  | Inf -> "Inf"
-  | NaN -> "NaN"
+  | Inf sign ->
+    Sign.to_string sign ^ "Infinity"
+  | NaN ->
+    "NaN"
   | Reg { sign; coef; exp } ->
     (* Number of digits of coef to left of decimal point *)
     let leftdigits = exp + String.length coef in
-    
+
     (* Number of digits of coef to left of decimal point in mantissa of
        output string (i.e. after adjusting for exponent *)
     let dotplace =
@@ -215,18 +231,19 @@ let to_string ?(eng=false) ?(context=Context.default ()) = function
     Sign.to_string sign ^ intpart ^ fracpart ^ exp
 
 let to_tuple = function
-  | Inf -> 1, "Inf", 0
+  | Inf sign -> Sign.to_int sign, "Inf", 0
   | NaN -> 1, "NaN", 0
   | Reg { sign; coef; exp } -> Sign.to_int sign, coef, exp
 
 let sign = function
-  | Inf | NaN -> 1
+  | Inf sign -> Sign.to_int sign
+  | NaN -> 1
   | Reg { sign; _ } -> Sign.to_int sign
 
 let adjust exp coef = exp + String.length coef - 1
 
 let adjusted = function
-  | Inf | NaN -> 0
+  | Inf _ | NaN -> 0
   | Reg { exp; coef; _ } -> adjust exp coef
 
 let zero_pad_right n string =
@@ -235,12 +252,19 @@ let zero_pad_right n string =
 
 let compare t1 t2 = match t1, t2 with
   (* Deal with specials *)
-  | Inf, Inf
-  | NaN, NaN -> 0
-  | _, Inf -> -1
-  | Inf, _ -> 1
-  | NaN, Reg _
-  | Reg _, NaN -> invalid_arg "compare: cannot compare NaN with decimal"
+  | Inf Pos, Inf Pos
+  | Inf Neg, Inf Neg
+  | NaN, NaN ->
+    0
+  | NaN, _
+  | _, NaN ->
+    invalid_arg "compare: cannot compare NaN with decimal"
+  | Inf Neg, _
+  | _, Inf Pos ->
+    -1
+  | _, Inf Neg
+  | Inf Pos, _ ->
+    1
 
   (* Deal with zeros *)
   | Reg { coef = "0"; _ }, Reg { coef = "0"; _ } -> 0
@@ -275,13 +299,22 @@ let compare t1 t2 = match t1, t2 with
     invalid_arg "compare: internal error"
 
 let negate = function
-  | (Inf | NaN) as t -> t
+  | NaN as t -> t
+  | Inf sign -> Inf (Sign.negate sign)
   | Reg { coef = "0"; _ } as t -> t
   | Reg { sign; coef; exp } -> Reg { sign = Sign.negate sign; coef; exp }
 
 let abs = function
   | Reg { sign = Neg; coef; exp } -> Reg { sign = Pos; coef; exp }
   | t -> t
+
+(*
+(** [fix context t] is [t] rounded if necessary to keep it within [prec]
+    precision in context [context]. Rounds and fixes the exponent. *)
+let fix context = function
+  | (Inf | NaN) as t -> t
+  | Reg { sign; coef; exp } ->
+*)
 
 let ( < ) t1 t2 = compare t1 t2 = -1
 let ( > ) t1 t2 = compare t1 t2 = 1
