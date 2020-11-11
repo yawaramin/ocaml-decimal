@@ -28,10 +28,10 @@ module Context : sig
     round : round;
     (** how to round *)
 
-    emax : int;
+    e_max : int;
     (** maximum exponent *)
 
-    emin : int;
+    e_min : int;
     (** minimum exponent *)
 
     capitals : bool;
@@ -44,10 +44,10 @@ module Context : sig
   val default : unit -> t
   val set_default : t -> unit
 
-  val etiny : t -> int
+  val e_tiny : t -> int
 
-  val etop : t -> int
-  (** [etop t] is the maximum exponent of context [t]. *)
+  val e_top : t -> int
+  (** [e_top t] is the maximum exponent of context [t]. *)
 end
 
 exception Overflow of string
@@ -84,4 +84,3 @@ val negate : t -> t
 
 val sign : t -> int
 (** [sign t] is [-1] if t is negative, and [1] otherwise. *)
-

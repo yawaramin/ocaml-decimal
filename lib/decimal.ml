@@ -335,6 +335,35 @@ module Round = struct
     | Zero_five_up -> zero_five_up
 end
 
+let rescale exp round = function
+  | (Inf _ | NaN) as t ->
+    t
+  | Normal ({ coef = "0"; _ } as normal) ->
+    Normal { normal with exp }
+  | Normal normal as t ->
+    if normal.exp >= exp then
+      Normal {
+        normal with
+        coef = zero_pad_right (normal.exp - exp) normal.coef;
+        exp;
+      }
+    else
+      (* too many digits; round and lose data. If [adjusted t < exp2 - 1],
+         replace [t] by [10 ** exp2 - 1] before rounding *)
+      let digits = String.length normal.coef + normal.exp - exp in
+      let t, digits =
+        if digits < 0 then
+          Normal { normal with coef = "1"; exp = exp - 1 }, 0
+        else
+          t, digits
+      in
+      let coef = match String.sub normal.coef 0 digits with "" -> "0" | c -> c in
+      let coef = match Round.with_function round digits t with
+        | 1 -> string_of_int (int_of_string coef + 1)
+        | _ -> coef
+      in
+      Normal { normal with coef; exp }
+
 (*
 (** [fix context t] is [t] rounded if necessary to keep it within [prec]
     precision in context [context]. Rounds and fixes the exponent. *)
@@ -342,11 +371,11 @@ let fix context = function
   | (Inf _ | NaN) as t ->
     t
   | Normal ({ coef; exp; _ } as normal) as t ->
-    let etiny = Context.etiny context in
-    let etop = Context.etop context in
+    let e_tiny = Context.e_tiny context in
+    let e_top = Context.e_top context in
     if coef = "0" then
-      let exp_max = if context.clamp then etop else context.emax in
-      let new_exp = min (max exp etiny) exp_max in
+      let exp_max = if context.clamp then e_top else context.e_max in
+      let new_exp = min (max exp e_tiny) exp_max in
       (* raise error Clamped *)
       if new_exp <> exp then Normal { normal with exp = new_exp }
       else t
@@ -357,8 +386,8 @@ let fix context = function
       if exp_min > etop then
         raise (Overflow "Above Emax")
       else
-        let is_subnormal = exp_min < etiny in
-        let exp_min = if is_subnormal then etiny else exp_min in
+        let is_subnormal = exp_min < e_tiny in
+        let exp_min = if is_subnormal then e_tiny else exp_min in
         (* round if has too many digits *)
         if exp < exp_min then
           let digits = len_coef + exp - exp_min in
@@ -370,8 +399,6 @@ let fix context = function
           in
           let rounding_method =
           *)
-
-
 
 
 let ( < ) t1 t2 = compare t1 t2 = -1

@@ -23,8 +23,8 @@ type flag =
 type t = {
   prec : int;
   round : round;
-  emax : int;
-  emin : int;
+  e_max : int;
+  e_min : int;
   capitals : bool;
   clamp : bool;
 }
@@ -32,8 +32,8 @@ type t = {
 let default = ref {
   prec = 32;
   round = Half_even;
-  emax = 999_999;
-  emin = -999_999;
+  e_max = 999_999;
+  e_min = -999_999;
   capitals = true;
   clamp = false;
 }
@@ -41,5 +41,5 @@ let default = ref {
 let set_default = (:=) default
 let default () = !default
 
-let etiny { prec; emin; _ } = emin - prec + 1
-let etop { prec; emax; _ } = emax - prec + 1
+let e_tiny { prec; e_min; _ } = e_min - prec + 1
+let e_top { prec; e_max; _ } = e_max - prec + 1
