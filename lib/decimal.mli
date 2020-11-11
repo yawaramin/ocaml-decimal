@@ -1,11 +1,12 @@
 module Context : sig
-  type rounding_mode =
+  type round =
   | Down
+  | Up
   | Half_up
+  | Half_down
   | Half_even
   | Ceiling
   | Floor
-  | Half_down
   | Zero_five_up
 
   type flag =
@@ -24,7 +25,7 @@ module Context : sig
     prec : int;
     (** precision, for use in rounding, division, square roots *)
 
-    rounding_mode : rounding_mode;
+    round : round;
     (** how to round *)
 
     emax : int;
@@ -48,6 +49,8 @@ module Context : sig
   val etop : t -> int
   (** [etop t] is the maximum exponent of context [t]. *)
 end
+
+exception Overflow of string
 
 type t
 

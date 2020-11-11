@@ -1,10 +1,11 @@
-type rounding_mode =
+type round =
 | Down
+| Up
 | Half_up
+| Half_down
 | Half_even
 | Ceiling
 | Floor
-| Half_down
 | Zero_five_up
 
 type flag =
@@ -21,7 +22,7 @@ type flag =
 
 type t = {
   prec : int;
-  rounding_mode : rounding_mode;
+  round : round;
   emax : int;
   emin : int;
   capitals : bool;
@@ -30,7 +31,7 @@ type t = {
 
 let default = ref {
   prec = 32;
-  rounding_mode = Half_even;
+  round = Half_even;
   emax = 999_999;
   emin = -999_999;
   capitals = true;

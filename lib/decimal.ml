@@ -58,6 +58,8 @@ module Of_string = struct
   let nan = Str.regexp "^[Nn]a[Nn]$"
 end
 
+exception Overflow of string
+
 type normal = { sign : Sign.t; coef : string; exp : int }
 type t = Normal of normal | Inf of Sign.t | NaN
 
@@ -68,7 +70,7 @@ let one = Normal { sign = Pos; coef = "1"; exp = 0 }
 let zero = Normal { sign = Pos; coef = "0"; exp = 0 }
 
 let get_sign value = Sign.of_string (Str.matched_group 1 value)
-let get_fracpart value = Str.matched_group 3 value
+let get_fracpart = Str.matched_group 3
 
 let get_coef value = match Str.matched_group 2 value with
   | exception Not_found
@@ -265,13 +267,112 @@ let abs = function
   | Normal { sign = Neg; coef; exp } -> Normal { sign = Pos; coef; exp }
   | t -> t
 
+module Round = struct
+  (* For each rounding function below:
+
+    [prec] is the rounding precision, satisfying [0 <= prec < String.length coef]
+    [t] is the decimal to round
+
+    Returns one of:
+
+    - 1 means should be rounded up (away from zero)
+    - 0 means should be truncated, and all values to digits to be truncated are
+      zeros
+    - -1 means there are nonzero digits to be truncated *)
+
+  let zeros = Str.regexp "0*$"
+  let half = Str.regexp "50*$"
+  let all_zeros = Str.string_match zeros
+  let exact_half = Str.string_match half
+  let gt5 = ['5'; '6'; '7'; '8'; '9']
+  let evens = ['0'; '2'; '4'; '6'; '8']
+  let zero_five = ['0'; '5']
+
+  (* Since these functions are private in this module, we can guarantee that
+     we'll only call them with the Normal variant. *)
+
+  [@@@warning "-8"]
+
+  let down prec (Normal { coef; _ }) = if all_zeros coef prec then 0 else -1
+  let up prec t = -down prec t
+
+  let half_up prec (Normal { coef; _ }) =
+    if List.mem coef.[prec] gt5 then 1
+    else if all_zeros coef prec then 0
+    else -1
+
+  let half_down prec (Normal { coef; _ } as t) =
+    if exact_half coef prec then -1 else half_up prec t
+
+  let half_even prec (Normal { coef; _ } as t) =
+    if exact_half coef prec && (prec = 0 || List.mem coef.[prec - 1] evens) then
+      -1
+    else
+      half_up prec t
+
+  let ceiling prec (Normal { sign; _ } as t) = match sign with
+    | Neg -> down prec t
+    | Pos -> -down prec t
+
+  let floor prec (Normal { sign; _ } as t) = match sign with
+    | Pos -> down prec t
+    | Neg -> -down prec t
+
+  let zero_five_up prec (Normal { coef; _ } as t) =
+    if prec > 0 && not (List.mem coef.[prec - 1] zero_five) then down prec t
+    else -down prec t
+
+  [@@@warning "+8"]
+
+  let with_function = function
+    | Context.Down -> down
+    | Up -> up
+    | Half_up -> half_up
+    | Half_down -> half_down
+    | Half_even -> half_even
+    | Ceiling -> ceiling
+    | Floor -> floor
+    | Zero_five_up -> zero_five_up
+end
+
 (*
 (** [fix context t] is [t] rounded if necessary to keep it within [prec]
     precision in context [context]. Rounds and fixes the exponent. *)
 let fix context = function
-  | (Inf | NaN) as t -> t
-  | Normal { sign; coef; exp } ->
-*)
+  | (Inf _ | NaN) as t ->
+    t
+  | Normal ({ coef; exp; _ } as normal) as t ->
+    let etiny = Context.etiny context in
+    let etop = Context.etop context in
+    if coef = "0" then
+      let exp_max = if context.clamp then etop else context.emax in
+      let new_exp = min (max exp etiny) exp_max in
+      (* raise error Clamped *)
+      if new_exp <> exp then Normal { normal with exp = new_exp }
+      else t
+    else
+      let len_coef = String.length coef in
+      (* smallest allowable exponent of the result *)
+      let exp_min = len_coef + exp - context.prec in
+      if exp_min > etop then
+        raise (Overflow "Above Emax")
+      else
+        let is_subnormal = exp_min < etiny in
+        let exp_min = if is_subnormal then etiny else exp_min in
+        (* round if has too many digits *)
+        if exp < exp_min then
+          let digits = len_coef + exp - exp_min in
+          let t, digits =
+            if digits < 0 then
+              Normal { normal with coef = "1"; exp = exp_min - 1 }, 0
+            else
+              t, digits
+          in
+          let rounding_method =
+          *)
+
+
+
 
 let ( < ) t1 t2 = compare t1 t2 = -1
 let ( > ) t1 t2 = compare t1 t2 = 1
