@@ -1,5 +1,3 @@
-module Context = Context
-
 module Sign = struct
   type t = Pos | Neg
 
@@ -11,6 +9,206 @@ module Sign = struct
   let to_int = function Neg -> -1 | Pos -> 1
   let to_string = function Pos -> "" | Neg -> "-"
   let negate = function Pos -> Neg | Neg -> Pos
+end
+
+type normal = { sign : Sign.t; coef : string; exp : int }
+type t = Normal of normal | Inf of Sign.t | NaN
+
+module Context = struct
+  module Signal = struct
+    type idx = int
+    type nonrec array = bool array
+
+    let clamped = 0
+    let invalid_operation = 1
+    let conversion_syntax = 2
+    let div_by_zero = 3
+    let div_impossible = 4
+    let div_undefined = 5
+    let inexact = 6
+    let rounded = 7
+    let subnormal = 8
+    let overflow = 9
+    let underflow = 10
+    let float_operation = 11
+
+    let make () = Array.make 12 false
+    let get = Array.get
+    let set = Array.set
+  end
+
+  type round =
+  | Down
+  | Up
+  | Half_up
+  | Half_down
+  | Half_even
+  | Ceiling
+  | Floor
+  | Zero_five_up
+
+  type flag =
+  | Clamped
+  | Invalid_operation
+  | Conversion_syntax
+  | Div_by_zero of Sign.t
+  | Div_impossible
+  | Div_undefined
+  | Inexact
+  | Rounded
+  | Subnormal
+  | Overflow of t * Sign.t
+  | Underflow
+  | Float_operation
+
+  and t = {
+    prec : int;
+    round : round;
+    e_max : int;
+    e_min : int;
+    capitals : bool;
+    clamp : bool;
+    traps : bool array;
+    flags : bool array;
+  }
+
+  let make
+    ?(prec=32)
+    ?(round=Half_even)
+    ?(e_max=999_999)
+    ?(e_min=(-999_999))
+    ?(capitals=true)
+    ?(clamp=false)
+    () = {
+      prec;
+      round;
+      e_max;
+      e_min;
+      capitals;
+      clamp;
+      traps = [|
+        false;
+        true; (* Invalid_operation *)
+        false;
+        true; (* Div_by_zero *)
+        false;
+        false;
+        false;
+        false;
+        false;
+        true; (* Overflow *)
+        false;
+        false;
+      |];
+      flags = [|
+        false;
+        false;
+        false;
+        false;
+        false;
+        false;
+        false;
+        false;
+        false;
+        false;
+        false;
+        false;
+      |];
+    }
+
+  let default = () |> make |> ref
+  let set_default = (:=) default
+  let default () = !default
+
+  let prec t = t.prec
+  let round t = t.round
+  let e_max t = t.e_max
+  let e_min t = t.e_min
+  let capitals t = t.capitals
+  let clamp t = t.clamp
+  let traps t = t.traps
+  let flags t = t.flags
+
+  let e_tiny { prec; e_min; _ } = e_min - prec + 1
+  let e_top { prec; e_max; _ } = e_max - prec + 1
+
+  let idx_of_flag =
+    let open Signal in
+    function
+    | Clamped -> clamped
+    | Inexact -> inexact
+    | Rounded -> rounded
+    | Subnormal -> subnormal
+    | Underflow -> underflow
+    | Float_operation -> float_operation
+    | Invalid_operation -> invalid_operation
+    | Conversion_syntax -> conversion_syntax
+    | Div_impossible -> div_impossible
+    | Div_undefined -> div_undefined
+    | Div_by_zero _ -> div_by_zero
+    | Overflow (_, _) -> overflow
+
+  let fail_msg str opt = str ^ match opt with
+    | Some msg -> msg
+    | None -> "(no info)"
+
+  let exn ?msg = function
+    | Clamped ->
+      Failure (fail_msg "clamped: " msg)
+    | Inexact ->
+      Failure (fail_msg "inexact: " msg)
+    | Rounded ->
+      Failure (fail_msg "rounded: " msg)
+    | Subnormal ->
+      Failure (fail_msg "subnormal: " msg)
+    | Underflow ->
+      Failure (fail_msg "underflow: " msg)
+    | Float_operation ->
+      Failure (fail_msg "float operation: " msg)
+    | Invalid_operation ->
+      Failure (fail_msg "invalid operation: " msg)
+    | Conversion_syntax ->
+      Invalid_argument (fail_msg "invalid decimal literal: " msg)
+    | Div_impossible ->
+      Failure (fail_msg "division impossible: " msg)
+    | Div_undefined ->
+      Failure (fail_msg "division undefined: " msg)
+    | Div_by_zero _ ->
+      Division_by_zero
+    | Overflow (_, _) ->
+      Failure (fail_msg "overflow: " msg)
+
+  let handle decimal = function
+    | Clamped
+    | Inexact
+    | Rounded
+    | Subnormal
+    | Underflow
+    | Float_operation -> decimal
+    | Invalid_operation
+    | Conversion_syntax
+    | Div_impossible
+    | Div_undefined -> NaN
+    | Div_by_zero sign -> Inf sign
+    | Overflow (t, sign) ->
+      begin match t.round, sign with
+      | (Half_up | Half_even | Half_down | Up), _
+      | Ceiling, Pos
+      | Floor, Neg ->
+        Inf sign
+      | _ ->
+        Normal {
+          sign;
+          coef = String.make t.prec '9';
+          exp = t.e_max - t.prec + 1;
+        }
+      end
+
+  let raise ?msg flag decimal t =
+    let idx = idx_of_flag flag in
+    Signal.set t.flags idx true;
+    if Signal.get t.traps idx then raise (exn ?msg flag)
+    else handle decimal flag
 end
 
 module Of_string = struct
@@ -58,11 +256,6 @@ module Of_string = struct
   let nan = Str.regexp "^[Nn]a[Nn]$"
 end
 
-exception Overflow of string
-
-type normal = { sign : Sign.t; coef : string; exp : int }
-type t = Normal of normal | Inf of Sign.t | NaN
-
 let pos_inf = Inf Pos
 let neg_inf = Inf Neg
 let nan = NaN
@@ -77,7 +270,7 @@ let get_coef value = match Str.matched_group 2 value with
   | "" -> "0"
   | coef -> coef
 
-let of_string value =
+let of_string ?(context=Context.default ()) value =
   let value = value
     |> String.trim
     |> Str.global_replace (Str.regexp_string "_") ""
@@ -109,7 +302,7 @@ let of_string value =
       exp = exp - String.length fracpart;
     }
   else
-    invalid_arg ("of_string: invalid literal: " ^ value)
+    Context.raise ~msg:value Conversion_syntax NaN context
 
 let of_int value =
   let sign = if value >= 0 then Sign.Pos else Neg in

@@ -1,4 +1,26 @@
 module Context : sig
+  module Signal : sig
+    type idx
+    type array
+
+    val clamped : idx
+    val invalid_operation : idx
+    val conversion_syntax : idx
+    val div_by_zero : idx
+    val div_impossible : idx
+    val div_undefined : idx
+    val inexact : idx
+    val rounded : idx
+    val subnormal : idx
+    val overflow : idx
+    val underflow : idx
+    val float_operation : idx
+
+    val make : unit -> array
+    val get : array -> idx -> bool
+    val set : array -> idx -> bool -> unit
+  end
+
   type round =
   | Down
   | Up
@@ -9,48 +31,35 @@ module Context : sig
   | Floor
   | Zero_five_up
 
-  type flag =
-  | Clamped
-  | Invalid_operation
-  | Conversion_syntax
-  | Division_impossible
-  | Division_undefined
-  | Inexact
-  | Rounded
-  | Subnormal
-  | Overflow
-  | Underflow
-
-  type t = {
-    prec : int;
-    (** precision, for use in rounding, division, square roots *)
-
-    round : round;
-    (** how to round *)
-
-    e_max : int;
-    (** maximum exponent *)
-
-    e_min : int;
-    (** minimum exponent *)
-
-    capitals : bool;
-    (** print exponent character as [E] if true else [e] *)
-
-    clamp : bool;
-    (** whether to change exponents if too high *)
-  }
+  type t
 
   val default : unit -> t
   val set_default : t -> unit
+
+  val make :
+    ?prec:int ->
+    ?round:round ->
+    ?e_max:int ->
+    ?e_min:int ->
+    ?capitals:bool ->
+    ?clamp:bool ->
+    unit ->
+    t
+
+  val prec : t -> int
+  val round : t -> round
+  val e_max : t -> int
+  val e_min : t -> int
+  val capitals : t -> bool
+  val clamp : t -> bool
+  val traps : t -> Signal.array
+  val flags : t -> Signal.array
 
   val e_tiny : t -> int
 
   val e_top : t -> int
   (** [e_top t] is the maximum exponent of context [t]. *)
 end
-
-exception Overflow of string
 
 type t
 
@@ -62,7 +71,7 @@ val zero : t
 
 val of_int : int -> t
 val of_float : float -> t
-val of_string : string -> t
+val of_string : ?context:Context.t -> string -> t
 
 val to_bool : t -> bool
 val to_ratio : t -> int * int
