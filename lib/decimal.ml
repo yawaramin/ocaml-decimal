@@ -476,41 +476,36 @@ module Round = struct
   let evens = ['0'; '2'; '4'; '6'; '8']
   let zero_five = ['0'; '5']
 
-  (* Since these functions are private in this module, we can guarantee that
-     we'll only call them with the Normal variant. *)
+  let down prec { coef; _ } = if all_zeros coef prec then 0 else -1
+  let up prec normal = -down prec normal
 
-  [@@@warning "-8"]
-
-  let down prec (Normal { coef; _ }) = if all_zeros coef prec then 0 else -1
-  let up prec t = -down prec t
-
-  let half_up prec (Normal { coef; _ }) =
+  let half_up prec { coef; _ } =
     if List.mem coef.[prec] gt5 then 1
     else if all_zeros coef prec then 0
     else -1
 
-  let half_down prec (Normal { coef; _ } as t) =
-    if exact_half coef prec then -1 else half_up prec t
+  let half_down prec normal =
+    if exact_half normal.coef prec then -1 else half_up prec normal
 
-  let half_even prec (Normal { coef; _ } as t) =
-    if exact_half coef prec && (prec = 0 || List.mem coef.[prec - 1] evens) then
+  let half_even prec normal =
+    if exact_half normal.coef prec && (prec = 0 || List.mem normal.coef.[prec - 1] evens) then
       -1
     else
-      half_up prec t
+      half_up prec normal
 
-  let ceiling prec (Normal { sign; _ } as t) = match sign with
-    | Neg -> down prec t
-    | Pos -> -down prec t
+  let ceiling prec normal = match normal.sign with
+    | Neg -> down prec normal
+    | Pos -> -down prec normal
 
-  let floor prec (Normal { sign; _ } as t) = match sign with
-    | Pos -> down prec t
-    | Neg -> -down prec t
+  let floor prec normal = match normal.sign with
+    | Pos -> down prec normal
+    | Neg -> -down prec normal
 
-  let zero_five_up prec (Normal { coef; _ } as t) =
-    if prec > 0 && not (List.mem coef.[prec - 1] zero_five) then down prec t
-    else -down prec t
-
-  [@@@warning "+8"]
+  let zero_five_up prec normal =
+    if prec > 0 && not (List.mem normal.coef.[prec - 1] zero_five) then
+      down prec normal
+    else
+      -down prec normal
 
   let with_function = function
     | Context.Down -> down
@@ -535,7 +530,7 @@ let rescale exp round = function
     t
   | Normal ({ coef = "0"; _ } as normal) ->
     Normal { normal with exp }
-  | Normal normal as t ->
+  | Normal normal ->
     if normal.exp >= exp then
       Normal {
         normal with
@@ -546,14 +541,12 @@ let rescale exp round = function
       (* too many digits; round and lose data. If [adjusted t < exp2 - 1],
          replace [t] by [10 ** exp2 - 1] before rounding *)
       let digits = String.length normal.coef + normal.exp - exp in
-      let t, digits =
-        if digits < 0 then
-          Normal { normal with coef = "1"; exp = exp - 1 }, 0
-        else
-          t, digits
+      let normal, digits =
+        if digits < 0 then { normal with coef = "1"; exp = exp - 1 }, 0
+        else normal, digits
       in
       let coef = match String.sub normal.coef 0 digits with "" -> "0" | c -> c in
-      let coef = match Round.with_function round digits t with
+      let coef = match Round.with_function round digits normal with
         | 1 -> add_one coef
         | _ -> coef
       in
@@ -580,9 +573,10 @@ let fix context = function
       (* smallest allowable exponent of the result *)
       let exp_min = len_coef + exp - context.prec in
       if exp_min > e_top then begin
+        let ans = Context.raise (Overflow sign) context in
         Context.raise Inexact context;
         Context.raise Rounded context;
-        Context.raise (Overflow sign) context
+        ans
       end
       else
         let is_subnormal = exp_min < e_tiny in
@@ -590,13 +584,11 @@ let fix context = function
         (* round if has too many digits *)
         if exp < exp_min then
           let digits = len_coef + exp - exp_min in
-          let t, digits =
-            if digits < 0 then
-              Normal { normal with coef = "1"; exp = exp_min - 1 }, 0
-            else
-              t, digits
+          let normal, digits =
+            if digits < 0 then { normal with coef = "1"; exp = exp_min - 1 }, 0
+            else normal, digits
           in
-          let changed = Round.with_function context.round digits t in
+          let changed = Round.with_function context.round digits normal in
           let coef = match String.sub normal.coef 0 digits with
             | "" -> "0"
             | c -> c
@@ -641,6 +633,30 @@ let fix context = function
           else
             t
         end
+
+(*
+let normalize ?(prec=0) normal1 normal2 =
+  let tmp, other =
+    if normal1.exp < normal2.exp then normal2, normal1 else normal1, normal2
+  in
+  let tmp_len = String.length tmp.coef in
+  let other_len = String.length other.coef in
+  let exp = tmp.exp + min ~-1 (tmp_len - prec - 2) in
+  let other =
+    if other_len + other.exp - 1 < exp then
+      { other with coef = "1"; exp }
+    else
+      other
+  in
+  let coef =
+    let open Z in
+    tmp.coef
+    |> of_string
+    |> mul (pow (of_int 10) (tmp.exp - other.exp))
+    |> to_string
+  in
+  let tmp = { tmp with coef; exp = other.exp } in
+  *)
 
 let ( < ) t1 t2 = compare t1 t2 = -1
 let ( > ) t1 t2 = compare t1 t2 = 1
