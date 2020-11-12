@@ -81,41 +81,24 @@ module Context = struct
     ?(e_min=(-999_999))
     ?(capitals=true)
     ?(clamp=false)
-    () = {
+    () =
+    let traps =
+      let open Signal in
+      let t = make () in
+      set t invalid_operation true;
+      set t div_by_zero true;
+      set t overflow true;
+      t
+    in
+    {
       prec;
       round;
       e_max;
       e_min;
       capitals;
       clamp;
-      traps = [|
-        false;
-        true; (* Invalid_operation *)
-        false;
-        true; (* Div_by_zero *)
-        false;
-        false;
-        false;
-        false;
-        false;
-        true; (* Overflow *)
-        false;
-        false;
-      |];
-      flags = [|
-        false;
-        false;
-        false;
-        false;
-        false;
-        false;
-        false;
-        false;
-        false;
-        false;
-        false;
-        false;
-      |];
+      traps;
+      flags = Signal.make ();
     }
 
   let default = () |> make |> ref
