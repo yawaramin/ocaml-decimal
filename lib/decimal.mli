@@ -70,7 +70,7 @@ val one : t
 val zero : t
 
 val of_int : int -> t
-val of_float : float -> t
+val of_float : ?context:Context.t -> float -> t
 val of_string : ?context:Context.t -> string -> t
 
 val to_bool : t -> bool

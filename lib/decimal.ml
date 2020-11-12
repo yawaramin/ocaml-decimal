@@ -15,6 +15,8 @@ type normal = { sign : Sign.t; coef : string; exp : int }
 type t = Normal of normal | Inf of Sign.t | NaN
 
 module Context = struct
+  type decimal = t
+
   module Signal = struct
     type idx = int
     type nonrec array = bool array
@@ -47,19 +49,19 @@ module Context = struct
   | Floor
   | Zero_five_up
 
-  type flag =
-  | Clamped
-  | Invalid_operation
-  | Conversion_syntax
-  | Div_by_zero of Sign.t
-  | Div_impossible
-  | Div_undefined
-  | Inexact
-  | Rounded
-  | Subnormal
-  | Overflow of t * Sign.t
-  | Underflow
-  | Float_operation
+  type _ flag =
+  | Clamped : unit flag
+  | Inexact : unit flag
+  | Rounded : unit flag
+  | Subnormal : unit flag
+  | Underflow : unit flag
+  | Float_operation : unit flag
+  | Invalid_operation : decimal flag
+  | Conversion_syntax : decimal flag
+  | Div_by_zero : Sign.t -> decimal flag
+  | Div_impossible : decimal flag
+  | Div_undefined : decimal flag
+  | Overflow : t * Sign.t -> decimal flag
 
   and t = {
     prec : int;
@@ -132,7 +134,7 @@ module Context = struct
   let e_tiny { prec; e_min; _ } = e_min - prec + 1
   let e_top { prec; e_max; _ } = e_max - prec + 1
 
-  let idx_of_flag =
+  let idx_of_flag : type a. a flag -> Signal.idx =
     let open Signal in
     function
     | Clamped -> clamped
@@ -152,7 +154,8 @@ module Context = struct
     | Some msg -> msg
     | None -> "(no info)"
 
-  let exn ?msg = function
+  let exn : type a. ?msg:string -> a flag -> exn = fun ?msg ->
+    function
     | Clamped ->
       Failure (fail_msg "clamped: " msg)
     | Inexact ->
@@ -178,16 +181,16 @@ module Context = struct
     | Overflow (_, _) ->
       Failure (fail_msg "overflow: " msg)
 
-  let handle decimal = function
-    | Clamped
-    | Inexact
-    | Rounded
-    | Subnormal
-    | Underflow
-    | Float_operation -> decimal
-    | Invalid_operation
-    | Conversion_syntax
-    | Div_impossible
+  let handle : type a. a flag -> a = function
+    | Clamped -> ()
+    | Inexact -> ()
+    | Rounded -> ()
+    | Subnormal -> ()
+    | Underflow -> ()
+    | Float_operation -> ()
+    | Invalid_operation -> NaN
+    | Conversion_syntax -> NaN
+    | Div_impossible -> NaN
     | Div_undefined -> NaN
     | Div_by_zero sign -> Inf sign
     | Overflow (t, sign) ->
@@ -204,11 +207,11 @@ module Context = struct
         }
       end
 
-  let raise ?msg flag decimal t =
+  let raise ?msg flag t =
     let idx = idx_of_flag flag in
     Signal.set t.flags idx true;
     if Signal.get t.traps idx then raise (exn ?msg flag)
-    else handle decimal flag
+    else handle flag
 end
 
 module Of_string = struct
@@ -302,13 +305,19 @@ let of_string ?(context=Context.default ()) value =
       exp = exp - String.length fracpart;
     }
   else
-    Context.raise ~msg:value Conversion_syntax NaN context
+    Context.raise ~msg:value Conversion_syntax context
 
 let of_int value =
   let sign = if value >= 0 then Sign.Pos else Neg in
   Normal { sign; coef = string_of_int (abs value); exp = 0 }
 
-let of_float value =
+let of_float ?(context=Context.default ()) value =
+  let float_str = string_of_float value in
+  Context.raise
+    ~msg:("strict semantics for mixing floats and decimals are enabled: " ^ float_str)
+    Float_operation
+    context;
+
   if value = Float.nan then
     nan
   else if value = Float.infinity then
@@ -326,7 +335,7 @@ let of_float value =
     | [coef; frac] ->
       Normal { sign; coef = coef ^ frac; exp = -String.length frac }
     | _ ->
-      invalid_arg ("of_float: invalid literal: " ^ string_of_float value)
+      Context.raise ~msg:float_str Conversion_syntax context
 
 let to_bool = function Normal { coef = "0"; _ } -> false | _ -> true
 
