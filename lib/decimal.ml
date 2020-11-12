@@ -63,7 +63,7 @@ module Context = struct
   | Div_undefined : decimal flag
   | Overflow : Sign.t -> decimal flag
 
-  and t = {
+  type t = {
     prec : int;
     round : round;
     e_max : int;
