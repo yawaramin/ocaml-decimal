@@ -74,7 +74,7 @@ val of_float : ?context:Context.t -> float -> t
 val of_string : ?context:Context.t -> string -> t
 
 val to_bool : t -> bool
-val to_ratio : t -> int * int
+val to_rational : t -> Q.t
 val to_string : ?eng:bool -> ?context:Context.t -> t -> string
 val pp : Format.formatter -> t -> unit
 

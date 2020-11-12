@@ -323,12 +323,6 @@ let of_float ?(context=Context.default ()) value =
 
 let to_bool = function Normal { coef = "0"; _ } -> false | _ -> true
 
-let to_ratio = function
-  | Inf _ -> invalid_arg "to_ratio: cannot handle Infinity"
-  | NaN -> invalid_arg "to_ratio: cannot handle NaN"
-  | Normal { coef = "0"; _ } -> 0, 1
-  | Normal _ -> failwith "TODO"
-
 let to_string ?(eng=false) ?(context=Context.default ()) = function
   | Inf sign ->
     Sign.to_string sign ^ "Infinity"
@@ -377,6 +371,12 @@ let to_string ?(eng=false) ?(context=Context.default ()) = function
     Sign.to_string sign ^ intpart ^ fracpart ^ exp
 
 let pp f t = t |> to_string |> Format.pp_print_string f
+
+let to_rational = function
+  | Inf _ -> invalid_arg "to_ratio: cannot handle Infinity"
+  | NaN -> invalid_arg "to_ratio: cannot handle NaN"
+  | Normal { coef = "0"; _ } -> Q.of_ints 0 1
+  | t -> t |> to_string |> Q.of_string
 
 let to_tuple = function
   | Inf sign -> Sign.to_int sign, "Inf", 0
