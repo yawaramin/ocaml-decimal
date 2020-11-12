@@ -425,26 +425,22 @@ let compare t1 t2 = match t1, t2 with
     compare (Sign.to_int s1) (Sign.to_int s2)
 
   (* Same sign *)
-  | Normal { coef = coef1; exp = exp1; sign = sign1 },
-    Normal { coef = coef2; exp = exp2; sign = sign2 } when sign1 = sign2 ->
+  | Normal { coef = coef1; exp = exp1; sign },
+    Normal { coef = coef2; exp = exp2; _ } ->
     begin match compare (adjust exp1 coef1) (adjust exp2 coef2) with
     | 0 ->
       let padded1 = zero_pad_right (exp1 - exp2) coef1 in
       let padded2 = zero_pad_right (exp2 - exp1) coef2 in
       begin match compare padded1 padded2 with
       | 0 -> 0
-      | -1 -> -Sign.to_int sign1
-      | 1 -> Sign.to_int sign1
+      | -1 -> -Sign.to_int sign
+      | 1 -> Sign.to_int sign
       | _ -> invalid_arg "compare: internal error"
       end
-    | 1 -> Sign.to_int sign1
-    | -1 -> -Sign.to_int sign1
+    | 1 -> Sign.to_int sign
+    | -1 -> -Sign.to_int sign
     | _ -> invalid_arg "compare: internal error"
     end
-
-  (* Signs are messed up, this shouldn't happen *)
-  | _ ->
-    invalid_arg "compare: internal error"
 
 let negate = function
   | NaN as t -> t
