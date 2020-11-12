@@ -538,6 +538,13 @@ module Round = struct
     | Zero_five_up -> zero_five_up
 end
 
+let add_one coef = match int_of_string coef with
+  | i -> i |> succ |> string_of_int
+  | exception Failure _ ->
+    match Int64.of_string coef with
+    | i -> i |> Int64.succ |> Int64.to_string
+    | exception Failure _ -> Z.(coef |> of_string |> succ |> to_string)
+
 let rescale exp round = function
   | (Inf _ | NaN) as t ->
     t
@@ -562,13 +569,13 @@ let rescale exp round = function
       in
       let coef = match String.sub normal.coef 0 digits with "" -> "0" | c -> c in
       let coef = match Round.with_function round digits t with
-        | 1 -> string_of_int (int_of_string coef + 1)
+        | 1 -> add_one coef
         | _ -> coef
       in
       Normal { normal with coef; exp }
 
-(** [fix context t] is [t] rounded if necessary to keep it within [prec]
-    precision in context [context]. Rounds and fixes the exponent. *)
+(** [fix context t] is [t] rounded if necessary to keep it within [context.prec]
+    precision. Rounds and fixes the exponent. *)
 let fix context = function
   | (Inf _ | NaN) as t ->
     t
@@ -611,7 +618,7 @@ let fix context = function
           in
           let coef, exp_min =
             if changed > 0 then
-              let coef = string_of_int (int_of_string coef + 1) in
+              let coef = add_one coef in
               let len_coef = String.length coef in
               if len_coef > context.prec then
                 String.sub coef 0 (len_coef - 1), exp_min + 1
@@ -620,7 +627,7 @@ let fix context = function
             else
               coef, exp_min
           in
-          (* check whether the rounding pushed the the exponent out of range *)
+          (* check whether the rounding pushed the exponent out of range *)
           let ans =
             if exp_min > e_top then
               Context.raise ~msg:"above e_max" (Overflow sign) context
