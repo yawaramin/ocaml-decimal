@@ -376,6 +376,8 @@ let to_string ?(eng=false) ?(context=Context.default ()) = function
     in
     Sign.to_string sign ^ intpart ^ fracpart ^ exp
 
+let pp f t = t |> to_string |> Format.pp_print_string f
+
 let to_tuple = function
   | Inf sign -> Sign.to_int sign, "Inf", 0
   | NaN -> 1, "NaN", 0

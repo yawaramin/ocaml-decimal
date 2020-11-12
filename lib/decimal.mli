@@ -76,6 +76,7 @@ val of_string : ?context:Context.t -> string -> t
 val to_bool : t -> bool
 val to_ratio : t -> int * int
 val to_string : ?eng:bool -> ?context:Context.t -> t -> string
+val pp : Format.formatter -> t -> unit
 
 val to_tuple : t -> int * string * int
 (** [to_tuple t] is a representation of the internals of [t] as a triple
