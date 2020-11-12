@@ -61,7 +61,7 @@ module Context = struct
   | Div_by_zero : Sign.t -> decimal flag
   | Div_impossible : decimal flag
   | Div_undefined : decimal flag
-  | Overflow : t * Sign.t -> decimal flag
+  | Overflow : Sign.t -> decimal flag
 
   and t = {
     prec : int;
@@ -148,7 +148,7 @@ module Context = struct
     | Div_impossible -> div_impossible
     | Div_undefined -> div_undefined
     | Div_by_zero _ -> div_by_zero
-    | Overflow (_, _) -> overflow
+    | Overflow _ -> overflow
 
   let fail_msg str opt = str ^ match opt with
     | Some msg -> msg
@@ -178,10 +178,11 @@ module Context = struct
       Failure (fail_msg "division undefined: " msg)
     | Div_by_zero _ ->
       Division_by_zero
-    | Overflow (_, _) ->
+    | Overflow _ ->
       Failure (fail_msg "overflow: " msg)
 
-  let handle : type a. a flag -> a = function
+  let handle : type a. a flag -> t -> a = fun flag t ->
+    match flag with
     | Clamped -> ()
     | Inexact -> ()
     | Rounded -> ()
@@ -193,7 +194,7 @@ module Context = struct
     | Div_impossible -> NaN
     | Div_undefined -> NaN
     | Div_by_zero sign -> Inf sign
-    | Overflow (t, sign) ->
+    | Overflow sign ->
       begin match t.round, sign with
       | (Half_up | Half_even | Half_down | Up), _
       | Ceiling, Pos
@@ -211,7 +212,7 @@ module Context = struct
     let idx = idx_of_flag flag in
     Signal.set t.flags idx true;
     if Signal.get t.traps idx then raise (exn ?msg flag)
-    else handle flag
+    else handle flag t
 end
 
 module Of_string = struct
@@ -566,27 +567,31 @@ let rescale exp round = function
       in
       Normal { normal with coef; exp }
 
-(*
 (** [fix context t] is [t] rounded if necessary to keep it within [prec]
     precision in context [context]. Rounds and fixes the exponent. *)
 let fix context = function
   | (Inf _ | NaN) as t ->
     t
-  | Normal ({ coef; exp; _ } as normal) as t ->
+  | Normal ({ sign; coef; exp } as normal) as t ->
     let e_tiny = Context.e_tiny context in
     let e_top = Context.e_top context in
     if coef = "0" then
       let exp_max = if context.clamp then e_top else context.e_max in
       let new_exp = min (max exp e_tiny) exp_max in
-      (* raise error Clamped *)
-      if new_exp <> exp then Normal { normal with exp = new_exp }
+      if new_exp <> exp then begin
+        Context.raise Clamped context;
+        Normal { normal with exp = new_exp }
+      end
       else t
     else
       let len_coef = String.length coef in
       (* smallest allowable exponent of the result *)
       let exp_min = len_coef + exp - context.prec in
-      if exp_min > etop then
-        raise (Overflow "Above Emax")
+      if exp_min > e_top then begin
+        Context.raise Inexact context;
+        Context.raise Rounded context;
+        Context.raise (Overflow sign) context
+      end
       else
         let is_subnormal = exp_min < e_tiny in
         let exp_min = if is_subnormal then e_tiny else exp_min in
@@ -599,9 +604,51 @@ let fix context = function
             else
               t, digits
           in
-          let rounding_method =
-          *)
-
+          let changed = Round.with_function context.round digits t in
+          let coef = match String.sub normal.coef 0 digits with
+            | "" -> "0"
+            | c -> c
+          in
+          let coef, exp_min =
+            if changed > 0 then
+              let coef = string_of_int (int_of_string coef + 1) in
+              let len_coef = String.length coef in
+              if len_coef > context.prec then
+                String.sub coef 0 (len_coef - 1), exp_min + 1
+              else
+                coef, exp_min
+            else
+              coef, exp_min
+          in
+          (* check whether the rounding pushed the the exponent out of range *)
+          let ans =
+            if exp_min > e_top then
+              Context.raise ~msg:"above e_max" (Overflow sign) context
+            else
+              Normal { normal with coef; exp = exp_min }
+          in
+          (* raise the appropriate signals, taking care to respect the
+             precedence described in the specification *)
+          if changed <> 0 && is_subnormal then Context.raise Underflow context;
+          if is_subnormal then Context.raise Subnormal context;
+          if changed <> 0 then Context.raise Inexact context;
+          Context.raise Rounded context;
+          if not (to_bool ans) then begin
+            (* raise Clamped on underflow to 0 *)
+            Context.raise Clamped context
+          end;
+          ans
+        else begin
+          if is_subnormal then Context.raise Subnormal context;
+          (* fold down if clamp and has too few digits *)
+          if context.clamp && exp > e_top then begin
+            Context.raise Clamped context;
+            let padded = zero_pad_right (exp - e_top) coef in
+            Normal { normal with coef = padded; exp = e_top }
+          end
+          else
+            t
+        end
 
 let ( < ) t1 t2 = compare t1 t2 = -1
 let ( > ) t1 t2 = compare t1 t2 = 1
