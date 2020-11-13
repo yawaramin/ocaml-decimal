@@ -63,8 +63,8 @@ end
 
 type t
 
-val pos_inf : t
-val neg_inf : t
+val infinity : t
+val neg_infinity : t
 val nan : t
 val one : t
 val zero : t
@@ -90,7 +90,12 @@ val ( >= ) : t -> t -> bool
 val abs : t -> t
 val adjusted : t -> int
 val compare : t -> t -> int
-val negate : t -> t
+
+val ( ~- ) : ?context:Context.t -> t -> t
+(** [~-t] is [t] with its sign switched. Rounded if necessary. *)
+
+val ( ~+ ) : ?context:Context.t -> t -> t
+(** [~+t] is [t], rounded if necessary. *)
 
 val sign : t -> int
 (** [sign t] is [-1] if t is negative, and [1] otherwise. *)

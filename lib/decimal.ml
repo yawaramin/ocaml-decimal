@@ -243,8 +243,8 @@ module Of_string = struct
   let nan = Str.regexp "^[Nn]a[Nn]$"
 end
 
-let pos_inf = Inf Pos
-let neg_inf = Inf Neg
+let infinity = Inf Pos
+let neg_infinity = Inf Neg
 let nan = NaN
 let one = Normal { sign = Pos; coef = "1"; exp = 0 }
 let zero = Normal { sign = Pos; coef = "0"; exp = 0 }
@@ -305,9 +305,9 @@ let of_float ?(context=Context.default ()) value =
   if value = Float.nan then
     nan
   else if value = Float.infinity then
-    pos_inf
+    infinity
   else if value = Float.neg_infinity then
-    neg_inf
+    neg_infinity
   else if value = 0. then
     zero
   else
@@ -441,11 +441,6 @@ let compare t1 t2 = match t1, t2 with
     | -1 -> -Sign.to_int sign
     | _ -> invalid_arg "compare: internal error"
     end
-
-let negate = function
-  | NaN as t -> t
-  | Inf sign -> Inf (Sign.negate sign)
-  | Normal reg -> Normal { reg with sign = Sign.negate reg.sign }
 
 let abs = function
   | Normal { sign = Neg; coef; exp } -> Normal { sign = Pos; coef; exp }
@@ -650,9 +645,25 @@ let normalize prec tmp other =
   let tmp = { tmp with coef; exp = other.exp } in
   tmp, other
 
+(** [normalize ?prec normal1 normal2] is [(op1, op2)] normalized to have the
+    same exp and length of coefficient. Done during addition. *)
 let normalize ?(prec=0) normal1 normal2 =
   if normal1.exp < normal2.exp then normalize prec normal2 normal1
   else normalize prec normal1 normal2
+
+let ( ~- ) ?(context=Context.default ()) = function
+  | NaN as t -> t
+  | Inf sign -> Inf (Sign.negate sign)
+  | Normal { coef = "0"; _ } as t when context.round <> Floor ->
+    t |> abs |> fix context
+  | Normal normal ->
+    fix context (Normal { normal with sign = Sign.negate normal.sign })
+
+let ( ~+ ) ?(context=Context.default ()) = function
+  | NaN as t -> t
+  | Inf _ -> infinity
+  | Normal { coef = "0"; _ } as t when context.round <> Floor -> abs t
+  | t -> fix context t
 
 let ( < ) t1 t2 = compare t1 t2 = -1
 let ( > ) t1 t2 = compare t1 t2 = 1
