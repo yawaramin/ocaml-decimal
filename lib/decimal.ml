@@ -630,11 +630,9 @@ let fix context = function
             t
         end
 
-(*
-let normalize ?(prec=0) normal1 normal2 =
-  let tmp, other =
-    if normal1.exp < normal2.exp then normal2, normal1 else normal1, normal2
-  in
+let z10 = Z.of_int 10
+
+let normalize prec tmp other =
   let tmp_len = String.length tmp.coef in
   let other_len = String.length other.coef in
   let exp = tmp.exp + min ~-1 (tmp_len - prec - 2) in
@@ -644,15 +642,17 @@ let normalize ?(prec=0) normal1 normal2 =
     else
       other
   in
-  let coef =
-    let open Z in
-    tmp.coef
-    |> of_string
-    |> mul (pow (of_int 10) (tmp.exp - other.exp))
-    |> to_string
+  let coef = tmp.coef
+    |> Z.of_string
+    |> Z.mul (Z.pow z10 (tmp.exp - other.exp))
+    |> Z.to_string
   in
   let tmp = { tmp with coef; exp = other.exp } in
-  *)
+  tmp, other
+
+let normalize ?(prec=0) normal1 normal2 =
+  if normal1.exp < normal2.exp then normalize prec normal2 normal1
+  else normalize prec normal1 normal2
 
 let ( < ) t1 t2 = compare t1 t2 = -1
 let ( > ) t1 t2 = compare t1 t2 = 1
