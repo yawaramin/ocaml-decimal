@@ -9,7 +9,7 @@
 
 (package
   (name decimal)
-  (synopsis "Arbitrary-precision fixed-point decimal library")
+  (synopsis "Arbitrary-precision floating-point decimal library")
   (depends
     (ocaml (>= 4.06.0))
     (zarith (and (>= 1.10) (< 2.0.0)))))
