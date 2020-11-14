@@ -878,6 +878,61 @@ let rem ?(context=Context.default ()) t1 t2 = match t1, t2 with
     let _, remainder = divide context t1 t2 in
     fix context remainder
 
+let div ?(context=Context.default ()) t1 t2 =
+  let sign () = Sign.pow (sign_t t1) (sign_t t2) in
+  let finalize sign coef exp = fix context (Normal { sign; coef; exp }) in
+  match t1, t2 with
+  | NaN, _ -> NaN
+  | _, NaN -> NaN
+  | Inf _, Inf _ ->
+    Context.raise ~msg:"(+/-)Inf / (+/-)Inf" Invalid_operation context
+  | Inf _, _ ->
+    Inf (sign ())
+  | _, Inf _ ->
+    Context.raise ~msg:"Division by Inf" Clamped context;
+    Normal { sign = sign (); coef = "0"; exp = Context.e_tiny context }
+
+  (* Special cases for zeroes *)
+  | Normal { coef = "0"; _ }, Normal { coef = "0"; _ } ->
+    Context.raise ~msg:"0 / 0" Div_undefined context
+  | _, Normal { coef = "0"; _ } ->
+    Context.raise ~msg:"x / 0" (Div_by_zero (sign ())) context
+  | Normal { coef = "0"; exp = exp1; _ }, Normal { exp = exp2; _ } ->
+    finalize (sign ()) "0" (exp1 - exp2)
+
+  (* Neither zero, Inf, or NaN *)
+  | Normal normal1, Normal normal2 ->
+    let shift = String.length normal2.coef -
+      String.length normal1.coef +
+      context.prec +
+      1
+    in
+    let exp = ref (normal1.exp - normal2.exp - shift) in
+    let int1 = Z.of_string normal1.coef in
+    let int2 = Z.of_string normal2.coef in
+    let coef, remainder =
+      if shift > 0 then Z.(div_rem (int1 * (pow z10 shift)) int2)
+      else
+        let shift = -shift in
+        Z.(div_rem int1 (int2 * (pow z10 shift)))
+    in
+    let coef =
+      if Z.(remainder <> zero && coef mod (of_int 5) = zero)
+        (* result is not exact; adjust to ensure correct rounding *)
+        then Z.(coef + one)
+      else begin
+        (* result is exact; get as close to ideal exponent as possible *)
+        let ideal_exp = normal1.exp - normal2.exp in
+        let r_coef = ref coef in
+        while !exp < ideal_exp && Z.(!r_coef mod z10 <> zero) do
+          r_coef := Z.(!r_coef / z10);
+          incr exp
+        done;
+        !r_coef
+      end
+    in
+    finalize (sign ()) (Z.to_string coef) !exp
+
 let ( ~- ) t = negate t
 let ( ~+ ) t = posate t
 let ( < ) t1 t2 = compare t1 t2 = -1
@@ -888,4 +943,5 @@ let ( = ) t1 t2 = compare t1 t2 = 0
 let ( + ) t1 t2 = add t1 t2
 let ( - ) t1 t2 = sub t1 t2
 let ( * ) t1 t2 = mul t1 t2
+let ( / ) t1 t2 = div t1 t2
 let ( % ) t1 t2 = rem t1 t2

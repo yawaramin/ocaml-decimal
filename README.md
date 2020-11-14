@@ -10,6 +10,8 @@ Using Zarith to do biginteger arithmetic.
     # (* for convenience *)
       module D = Decimal
       let d = D.of_string;;
-    # #install_printer D.pp;;
-    # D.(d "0.1" + d "0.2");;
+    #
+      #install_printer D.pp;;
+    #
+      D.(d "0.1" + d "0.2");;
     - : D.t = 0.3

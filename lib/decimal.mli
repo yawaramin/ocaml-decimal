@@ -94,6 +94,7 @@ val compare : t -> t -> int
 val add : ?context:Context.t -> t -> t -> t
 val sub : ?context:Context.t -> t -> t -> t
 val mul : ?context:Context.t -> t -> t -> t
+val div : ?context:Context.t -> t -> t -> t
 
 val div_rem : ?context:Context.t -> t -> t -> t * t
 (** [div_rem ?context t1 t2] is [(t1 / t2, t1 % t2)]. *)
@@ -111,4 +112,5 @@ val ( >= ) : t -> t -> bool
 val ( + ) : t -> t -> t
 val ( - ) : t -> t -> t
 val ( * ) : t -> t -> t
+val ( / ) : t -> t -> t
 val ( % ) : t -> t -> t
