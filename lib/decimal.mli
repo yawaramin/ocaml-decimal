@@ -97,5 +97,7 @@ val ( ~- ) : ?context:Context.t -> t -> t
 val ( ~+ ) : ?context:Context.t -> t -> t
 (** [~+t] is [t], rounded if necessary. *)
 
+val ( + ) : ?context:Context.t -> t -> t -> t
+
 val sign : t -> int
 (** [sign t] is [-1] if t is negative, and [1] otherwise. *)

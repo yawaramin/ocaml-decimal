@@ -9,6 +9,8 @@ module Sign = struct
   let to_int = function Neg -> -1 | Pos -> 1
   let to_string = function Pos -> "" | Neg -> "-"
   let negate = function Pos -> Neg | Neg -> Pos
+
+  let min t1 t2 = match t1, t2 with Pos, _ | _, Pos -> Pos | _ -> Neg
 end
 
 type normal = { sign : Sign.t; coef : string; exp : int }
@@ -85,6 +87,7 @@ module Context = struct
     let traps =
       let open Signal in
       let t = make () in
+      set t conversion_syntax true;
       set t invalid_operation true;
       set t div_by_zero true;
       set t overflow true;
@@ -509,12 +512,7 @@ module Round = struct
     | Zero_five_up -> zero_five_up
 end
 
-let add_one coef = match int_of_string coef with
-  | i -> i |> succ |> string_of_int
-  | exception Failure _ ->
-    match Int64.of_string coef with
-    | i -> i |> Int64.succ |> Int64.to_string
-    | exception Failure _ -> Z.(coef |> of_string |> succ |> to_string)
+let add_one coef = Z.(coef |> of_string |> succ |> to_string)
 
 let rescale exp round = function
   | (Inf _ | NaN) as t ->
@@ -650,6 +648,91 @@ let normalize prec tmp other =
 let normalize ?(prec=0) normal1 normal2 =
   if normal1.exp < normal2.exp then normalize prec normal2 normal1
   else normalize prec normal1 normal2
+
+let ( + ) ?(context=Context.default ()) t1 t2 = match t1, t2 with
+  | NaN, _
+  | _, NaN ->
+    nan
+  | Inf Pos, Inf Pos ->
+    infinity
+  | Inf Neg, Inf Neg ->
+    neg_infinity
+  | Inf Pos, Inf Neg
+  | Inf Neg, Inf Pos ->
+    Context.raise ~msg:"-Infinity + Infinity" Invalid_operation context
+  | Inf _, _ ->
+    t1
+  | _, Inf _ ->
+    t2
+  | Normal normal1, Normal normal2 ->
+    let exp = min normal1.exp normal2.exp in
+    (* If the answer is 0, the sign should be negative *)
+    let negativezero = context.round = Floor && normal1.sign <> normal2.sign in
+    (* Can compare the strings here because they've been normalized *)
+    match normal1.coef, normal2.coef with
+    (* One or both are zeroes *)
+    | "0", "0" ->
+      let sign =
+        if negativezero then Sign.Neg else Sign.min normal1.sign normal2.sign
+      in
+      fix context (Normal { sign; coef = "0"; exp })
+    | "0", _ ->
+      let exp = max exp (normal2.exp - context.prec - 1) in
+      t2 |> rescale exp context.round |> fix context
+    | _, "0" ->
+      let exp = max exp (normal1.exp - context.prec - 1) in
+      t1 |> rescale exp context.round |> fix context
+
+    (* Neither is zero *)
+    | _ ->
+      let finalize normal1 normal2 result =
+        let int1 = Z.of_string normal1.coef in
+        let int2 = Z.of_string normal2.coef in
+        let coef = match normal2.sign with
+          | Pos -> Z.add int1 int2
+          | Neg -> Z.sub int1 int2
+        in
+        fix
+          context
+          (Normal { result with coef = Z.to_string coef; exp = normal1.exp })
+      in
+      let normal1, normal2 = normalize ~prec:context.prec normal1 normal2 in
+      let result = { sign = Pos; coef = "0"; exp = 1 } in
+      match normal1.sign, normal2.sign with
+        | Pos, Neg
+        | Neg, Pos ->
+          (* Equal and opposite *)
+          if normal1.coef = normal2.coef then
+            fix context (Normal {
+              sign = if negativezero then Neg else Pos;
+              coef = "0";
+              exp;
+            })
+          else
+            let normal1, normal2 =
+              if normal1.coef < normal2.coef then normal2, normal1
+              (* OK, now abs(normal1) > abs(normal2) *)
+              else normal1, normal2
+            in
+            let result, normal1, normal2 =
+              if normal1.sign = Neg then
+                { result with sign = Neg },
+                { normal1 with sign = normal2.sign },
+                { normal2 with sign = normal1.sign }
+              else
+                { result with sign = Pos },
+                normal1,
+                normal2
+                (* So we know the sign, and normal1 > 0 *)
+            in
+            finalize normal1 normal2 result
+        | Neg, _ ->
+          let result = { result with sign = Neg } in
+          let normal1 = { normal1 with sign = Pos } in
+          let normal2 = { normal2 with sign = Pos } in
+          finalize normal1 normal2 result
+        | _ ->
+          finalize normal1 normal2 { result with sign = Pos }
 
 let ( ~- ) ?(context=Context.default ()) = function
   | NaN as t -> t

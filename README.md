@@ -1,7 +1,7 @@
 ## decimal
 
 Arbitrary-precision decimals implemented in OCaml. Ported from Python `decimal`
-module.
+module. Using Zarith to do big integer arithmetic.
 
 ## Develop
 
