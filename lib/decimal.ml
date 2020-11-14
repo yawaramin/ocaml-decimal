@@ -392,10 +392,12 @@ let to_tuple = function
   | NaN -> 1, "NaN", 0
   | Normal { sign; coef; exp } -> Sign.to_int sign, coef, exp
 
-let sign = function
-  | NaN -> 1
+let sign_t = function
+  | NaN -> Sign.Pos
   | Inf sign
-  | Normal { sign; _ } -> Sign.to_int sign
+  | Normal { sign; _ } -> sign
+
+let sign t = t |> sign_t |> Sign.to_int
 
 let adjust exp coef = exp + String.length coef - 1
 
@@ -686,8 +688,10 @@ let add ?(context=Context.default ()) t1 t2 = match t1, t2 with
     t2
   | Normal normal1, Normal normal2 ->
     let exp = min normal1.exp normal2.exp in
+
     (* If the answer is 0, the sign should be negative *)
     let negativezero = context.round = Floor && normal1.sign <> normal2.sign in
+
     (* Can compare the strings here because they've been normalized *)
     match normal1.coef, normal2.coef with
     (* One or both are zeroes *)
@@ -702,6 +706,7 @@ let add ?(context=Context.default ()) t1 t2 = match t1, t2 with
     | _, "0" ->
       let exp = max exp (normal1.exp - context.prec - 1) in
       t1 |> rescale exp context.round |> fix context
+
     (* Neither is zero *)
     | _ ->
       let finalize normal1 normal2 result =
@@ -776,6 +781,7 @@ let mul ?(context=Context.default ()) t1 t2 = match t1, t2 with
     | { coef = "0"; _ }, _
     | _, { coef = "0"; _ } ->
       fix context (Normal { sign; coef = "0"; exp })
+
     (* Special case for multiplying by power of 10 *)
     | { coef = "1"; _ }, { coef; _}
     | { coef; _ }, { coef = "1"; _ } ->
@@ -785,6 +791,80 @@ let mul ?(context=Context.default ()) t1 t2 = match t1, t2 with
         Z.(to_string (of_string normal1.coef * of_string normal2.coef))
       in
       fix context (Normal { sign; coef; exp })
+
+let divide context t1 t2 =
+  let expdiff = adjusted t1 - adjusted t2 in
+  let sign = Sign.pow (sign_t t1) (sign_t t2) in
+  let exp = function
+    | NaN -> invalid_arg "exp NaN"
+    | Inf _ -> 0
+    | Normal { exp; _ } -> exp
+  in
+  let z t =
+    Normal { sign; coef = "0"; exp = 0 },
+    rescale (exp t) context.Context.round t
+  in
+  match t1, t2 with
+  | NaN, _
+  | _, NaN ->
+    NaN, NaN
+  | _, Inf _ ->
+    z t1
+  | Inf _, _ ->
+    let ans = Context.raise Invalid_operation context in
+    ans, ans
+  | Normal { coef = "0"; _ }, _ ->
+    z t1
+  | Normal normal1, Normal normal2 ->
+    (* The quotient is too large to be representable *)
+    let div_impossible () =
+      let ans = Context.raise
+        ~msg:"quotient too large in //, % or divmod"
+        Div_impossible
+        context
+      in
+      ans, ans
+    in
+    if expdiff <= -2 then
+      z t1
+    else if expdiff <= context.prec then
+      let int1 = Z.of_string normal1.coef in
+      let int2 = Z.of_string normal2.coef in
+      let int1, int2 =
+        if normal1.exp >= normal2.exp then
+          Z.mul int1 (Z.pow z10 (normal1.exp - normal2.exp)), int2
+        else
+          int1, Z.mul int2 (Z.pow z10 (normal2.exp - normal1.exp))
+      in
+      let q, r = Z.div_rem int1 int2 in
+      if Z.(lt q (pow z10 context.prec)) then
+        let ideal_exp = min normal1.exp normal2.exp in
+        Normal { sign; coef = Z.to_string q; exp = 0 },
+        Normal { sign = normal1.sign; coef = Z.to_string r; exp = ideal_exp }
+      else
+        div_impossible ()
+    else
+      div_impossible ()
+
+let div_rem ?(context=Context.default ()) t1 t2 =
+  let sign = Sign.pow (sign_t t1) (sign_t t2) in
+  match t1, t2 with
+  | NaN, _
+  | _, NaN -> NaN, NaN
+  | Inf _, Inf _ ->
+    let ans = Context.raise ~msg:"div_rem Inf Inf" Invalid_operation context in
+    ans, ans
+  | Inf _, _ ->
+    Inf sign, Context.raise ~msg:"Inf % x" Invalid_operation context
+  | Normal { coef = "0"; _ }, Normal { coef = "0"; _ } ->
+    let ans = Context.raise ~msg:"div_rem 0 0" Div_undefined context in
+    ans, ans
+  | _, Normal { coef = "0"; _ } ->
+    Context.raise ~msg:"x / 0" (Div_by_zero sign) context,
+    Context.raise ~msg:"x % 0" Invalid_operation context
+  | _ ->
+    let quotient, remainder = divide context t1 t2 in
+    quotient, fix context remainder
 
 let ( ~- ) t = negate t
 let ( ~+ ) t = posate t

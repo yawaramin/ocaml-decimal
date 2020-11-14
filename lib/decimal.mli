@@ -95,6 +95,9 @@ val add : ?context:Context.t -> t -> t -> t
 val sub : ?context:Context.t -> t -> t -> t
 val mul : ?context:Context.t -> t -> t -> t
 
+val div_rem : ?context:Context.t -> t -> t -> t * t
+(** [div_rem ?context t1 t2] is [(t1 / t2, t1 mod t2)]. *)
+
 val ( ~- ) : t -> t
 val ( ~+ ) : t -> t
 val ( = ) : t -> t -> bool
