@@ -374,8 +374,7 @@ let to_string ?(eng=false) ?(context=Context.default ()) = function
         ""
       else
         let e = if context.Context.capitals then "E" else "e" in
-        let s = if value >= 0 then "+" else "-" in
-        e ^ s ^ string_of_int value
+        e ^ string_of_int value
     in
     Sign.to_string sign ^ intpart ^ fracpart ^ exp
 
