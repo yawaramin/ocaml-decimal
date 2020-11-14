@@ -614,10 +614,9 @@ let fix context = function
           if is_subnormal then Context.raise Subnormal context;
           if changed <> 0 then Context.raise Inexact context;
           Context.raise Rounded context;
-          if not (to_bool ans) then begin
+          if not (to_bool ans) then
             (* raise Clamped on underflow to 0 *)
-            Context.raise Clamped context
-          end;
+            Context.raise Clamped context;
           ans
         else begin
           if is_subnormal then Context.raise Subnormal context;
@@ -944,4 +943,4 @@ let ( + ) t1 t2 = add t1 t2
 let ( - ) t1 t2 = sub t1 t2
 let ( * ) t1 t2 = mul t1 t2
 let ( / ) t1 t2 = div t1 t2
-let ( % ) t1 t2 = rem t1 t2
+let ( mod ) t1 t2 = rem t1 t2
