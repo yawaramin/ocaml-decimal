@@ -82,23 +82,26 @@ val to_tuple : t -> int * string * int
 (** [to_tuple t] is a representation of the internals of [t] as a triple
     of [(sign, coefficient, exponent)] for debugging purposes. *)
 
+val abs : t -> t
+val adjusted : t -> int
+val negate : ?context:Context.t -> t
+val posate : ?context:Context.t -> t
+
+val sign : t -> int
+(** [sign t] is [-1] if t is negative, and [1] otherwise. *)
+
+val compare : t -> t -> int
+val add : ?context:Context.t -> t -> t -> t
+val sub : ?context:Context.t -> t -> t -> t
+val mul : ?context:Context.t -> t -> t -> t
+
+val ( ~- ) : t -> t
+val ( ~+ ) : t -> t
 val ( = ) : t -> t -> bool
 val ( < ) : t -> t -> bool
 val ( > ) : t -> t -> bool
 val ( <= ) : t -> t -> bool
 val ( >= ) : t -> t -> bool
-val abs : t -> t
-val adjusted : t -> int
-val compare : t -> t -> int
-
-val ( ~- ) : ?context:Context.t -> t -> t
-(** [~-t] is [t] with its sign switched. Rounded if necessary. *)
-
-val ( ~+ ) : ?context:Context.t -> t -> t
-(** [~+t] is [t], rounded if necessary. *)
-
-val ( + ) : ?context:Context.t -> t -> t -> t
-val ( - ) : ?context:Context.t -> t -> t -> t
-
-val sign : t -> int
-(** [sign t] is [-1] if t is negative, and [1] otherwise. *)
+val ( + ) : t -> t -> t
+val ( - ) : t -> t -> t
+val ( * ) : t -> t -> t

@@ -10,6 +10,12 @@ module Sign = struct
   let to_string = function Pos -> "" | Neg -> "-"
   let negate = function Pos -> Neg | Neg -> Pos
 
+  let pow t1 t2 = match t1, t2 with
+    | Pos, Pos
+    | Neg, Neg -> Pos
+    | Pos, Neg
+    | Neg, Pos -> Neg
+
   let min t1 t2 = match t1, t2 with Pos, _ | _, Pos -> Pos | _ -> Neg
 end
 
@@ -649,7 +655,21 @@ let normalize ?(prec=0) normal1 normal2 =
   if normal1.exp < normal2.exp then normalize prec normal2 normal1
   else normalize prec normal1 normal2
 
-let ( + ) ?(context=Context.default ()) t1 t2 = match t1, t2 with
+let negate ?(context=Context.default ()) = function
+  | NaN as t -> t
+  | Inf sign -> Inf (Sign.negate sign)
+  | Normal { coef = "0"; _ } as t when context.round <> Floor ->
+    t |> abs |> fix context
+  | Normal normal ->
+    fix context (Normal { normal with sign = Sign.negate normal.sign })
+
+let posate ?(context=Context.default ()) = function
+  | NaN as t -> t
+  | Inf _ -> infinity
+  | Normal { coef = "0"; _ } as t when context.round <> Floor -> abs t
+  | t -> fix context t
+
+let add ?(context=Context.default ()) t1 t2 = match t1, t2 with
   | NaN, _
   | _, NaN ->
     nan
@@ -733,24 +753,46 @@ let ( + ) ?(context=Context.default ()) t1 t2 = match t1, t2 with
         | _ ->
           finalize normal1 normal2 { result with sign = Pos }
 
-let ( ~- ) ?(context=Context.default ()) = function
-  | NaN as t -> t
-  | Inf sign -> Inf (Sign.negate sign)
-  | Normal { coef = "0"; _ } as t when context.round <> Floor ->
-    t |> abs |> fix context
-  | Normal normal ->
-    fix context (Normal { normal with sign = Sign.negate normal.sign })
+let sub ?(context=Context.default ()) t1 t2 = add ~context t1 (negate t2)
 
-let ( - ) ?(context=Context.default ()) t1 t2 = ( + ) ~context t1 ~-t2
+let mul ?(context=Context.default ()) t1 t2 = match t1, t2 with
+  | NaN, _
+  | _, NaN ->
+    NaN
+  | Inf _, Normal { coef = "0"; _ } ->
+    Context.raise ~msg:"(+-)INF * 0" Invalid_operation context
+  | Normal { coef = "0"; _ }, Inf _ ->
+    Context.raise ~msg:"0 * (+-)INF" Invalid_operation context
+  | Inf sign1, Inf sign2
+  | Inf sign1, Normal { sign = sign2; _ } ->
+    Inf (Sign.pow sign1 sign2)
+  | Normal { sign = sign1; _ }, Inf sign2 ->
+    Inf (Sign.pow sign1 sign2)
+  | Normal normal1, Normal normal2 ->
+    let sign = Sign.pow normal1.sign normal2.sign in
+    let exp = normal1.exp + normal2.exp in
+    match normal1, normal2 with
+    (* Special case for multiplying by zero *)
+    | { coef = "0"; _ }, _
+    | _, { coef = "0"; _ } ->
+      fix context (Normal { sign; coef = "0"; exp })
+    (* Special case for multiplying by power of 10 *)
+    | { coef = "1"; _ }, { coef; _}
+    | { coef; _ }, { coef = "1"; _ } ->
+      fix context (Normal { sign; coef; exp })
+    | _ ->
+      let coef =
+        Z.(to_string (of_string normal1.coef * of_string normal2.coef))
+      in
+      fix context (Normal { sign; coef; exp })
 
-let ( ~+ ) ?(context=Context.default ()) = function
-  | NaN as t -> t
-  | Inf _ -> infinity
-  | Normal { coef = "0"; _ } as t when context.round <> Floor -> abs t
-  | t -> fix context t
-
+let ( ~- ) t = negate t
+let ( ~+ ) t = posate t
 let ( < ) t1 t2 = compare t1 t2 = -1
 let ( > ) t1 t2 = compare t1 t2 = 1
 let ( <= ) t1 t2 = compare t1 t2 <= 0
 let ( >= ) t1 t2 = compare t1 t2 >= 0
 let ( = ) t1 t2 = compare t1 t2 = 0
+let ( + ) t1 t2 = add t1 t2
+let ( - ) t1 t2 = sub t1 t2
+let ( * ) t1 t2 = mul t1 t2
