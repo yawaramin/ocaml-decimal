@@ -124,6 +124,8 @@ val sign : t -> int
 (** [sign t] is [-1] if t is negative, and [1] otherwise. *)
 
 val compare : t -> t -> int
+val min : t -> t -> t
+val max : t -> t -> t
 val add : ?context:Context.t -> t -> t -> t
 val sub : ?context:Context.t -> t -> t -> t
 val mul : ?context:Context.t -> t -> t -> t

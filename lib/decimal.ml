@@ -944,3 +944,6 @@ let ( - ) t1 t2 = sub t1 t2
 let ( * ) t1 t2 = mul t1 t2
 let ( / ) t1 t2 = div t1 t2
 let ( mod ) t1 t2 = rem t1 t2
+
+let min t1 t2 = if t1 > t2 then t2 else t1
+let max t1 t2 = if t1 > t2 then t1 else t2
