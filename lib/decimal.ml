@@ -1,3 +1,25 @@
+module Signal = struct
+  type id = int
+  type nonrec array = bool array
+
+  let clamped = 0
+  let invalid_operation = 1
+  let conversion_syntax = 2
+  let div_by_zero = 3
+  let div_impossible = 4
+  let div_undefined = 5
+  let inexact = 6
+  let rounded = 7
+  let subnormal = 8
+  let overflow = 9
+  let underflow = 10
+  let float_operation = 11
+
+  let make () = Array.make 12 false
+  let get = Array.get
+  let set = Array.set
+end
+
 module Sign = struct
   type t = Pos | Neg
 
@@ -10,7 +32,7 @@ module Sign = struct
   let to_string = function Pos -> "" | Neg -> "-"
   let negate = function Pos -> Neg | Neg -> Pos
 
-  let pow t1 t2 = match t1, t2 with
+  let xor t1 t2 = match t1, t2 with
     | Pos, Pos
     | Neg, Neg -> Pos
     | Pos, Neg
@@ -23,30 +45,6 @@ type normal = { sign : Sign.t; coef : string; exp : int }
 type t = Normal of normal | Inf of Sign.t | NaN
 
 module Context = struct
-  type decimal = t
-
-  module Signal = struct
-    type idx = int
-    type nonrec array = bool array
-
-    let clamped = 0
-    let invalid_operation = 1
-    let conversion_syntax = 2
-    let div_by_zero = 3
-    let div_impossible = 4
-    let div_undefined = 5
-    let inexact = 6
-    let rounded = 7
-    let subnormal = 8
-    let overflow = 9
-    let underflow = 10
-    let float_operation = 11
-
-    let make () = Array.make 12 false
-    let get = Array.get
-    let set = Array.set
-  end
-
   type round =
   | Down
   | Up
@@ -64,12 +62,12 @@ module Context = struct
   | Subnormal : unit flag
   | Underflow : unit flag
   | Float_operation : unit flag
-  | Invalid_operation : decimal flag
-  | Conversion_syntax : decimal flag
-  | Div_by_zero : Sign.t -> decimal flag
-  | Div_impossible : decimal flag
-  | Div_undefined : decimal flag
-  | Overflow : Sign.t -> decimal flag
+  | Invalid_operation : t flag
+  | Conversion_syntax : t flag
+  | Div_by_zero : Sign.t -> t flag
+  | Div_impossible : t flag
+  | Div_undefined : t flag
+  | Overflow : Sign.t -> t flag
 
   type t = {
     prec : int;
@@ -126,7 +124,7 @@ module Context = struct
   let e_tiny { prec; e_min; _ } = e_min - prec + 1
   let e_top { prec; e_max; _ } = e_max - prec + 1
 
-  let idx_of_flag : type a. a flag -> Signal.idx =
+  let idx_of_flag : type a. a flag -> Signal.id =
     let open Signal in
     function
     | Clamped -> clamped
@@ -768,11 +766,11 @@ let mul ?(context=Context.default ()) t1 t2 = match t1, t2 with
     Context.raise ~msg:"0 * (+-)INF" Invalid_operation context
   | Inf sign1, Inf sign2
   | Inf sign1, Normal { sign = sign2; _ } ->
-    Inf (Sign.pow sign1 sign2)
+    Inf (Sign.xor sign1 sign2)
   | Normal { sign = sign1; _ }, Inf sign2 ->
-    Inf (Sign.pow sign1 sign2)
+    Inf (Sign.xor sign1 sign2)
   | Normal normal1, Normal normal2 ->
-    let sign = Sign.pow normal1.sign normal2.sign in
+    let sign = Sign.xor normal1.sign normal2.sign in
     let exp = normal1.exp + normal2.exp in
     match normal1, normal2 with
     (* Special case for multiplying by zero *)
@@ -792,7 +790,7 @@ let mul ?(context=Context.default ()) t1 t2 = match t1, t2 with
 
 let divide context t1 t2 =
   let expdiff = adjusted t1 - adjusted t2 in
-  let sign = Sign.pow (sign_t t1) (sign_t t2) in
+  let sign = Sign.xor (sign_t t1) (sign_t t2) in
   let exp = function
     | NaN -> invalid_arg "exp NaN"
     | Inf _ -> 0
@@ -845,7 +843,7 @@ let divide context t1 t2 =
       div_impossible ()
 
 let div_rem ?(context=Context.default ()) t1 t2 =
-  let sign = Sign.pow (sign_t t1) (sign_t t2) in
+  let sign = Sign.xor (sign_t t1) (sign_t t2) in
   match t1, t2 with
   | NaN, _
   | _, NaN -> NaN, NaN
@@ -877,7 +875,7 @@ let rem ?(context=Context.default ()) t1 t2 = match t1, t2 with
     fix context remainder
 
 let div ?(context=Context.default ()) t1 t2 =
-  let sign () = Sign.pow (sign_t t1) (sign_t t2) in
+  let sign () = Sign.xor (sign_t t1) (sign_t t2) in
   let finalize sign coef exp = fix context (Normal { sign; coef; exp }) in
   match t1, t2 with
   | NaN, _ -> NaN
