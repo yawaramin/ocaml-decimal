@@ -682,7 +682,6 @@ let ( + ) ?(context=Context.default ()) t1 t2 = match t1, t2 with
     | _, "0" ->
       let exp = max exp (normal1.exp - context.prec - 1) in
       t1 |> rescale exp context.round |> fix context
-
     (* Neither is zero *)
     | _ ->
       let finalize normal1 normal2 result =
@@ -741,6 +740,8 @@ let ( ~- ) ?(context=Context.default ()) = function
     t |> abs |> fix context
   | Normal normal ->
     fix context (Normal { normal with sign = Sign.negate normal.sign })
+
+let ( - ) ?(context=Context.default ()) t1 t2 = ( + ) ~context t1 ~-t2
 
 let ( ~+ ) ?(context=Context.default ()) = function
   | NaN as t -> t
