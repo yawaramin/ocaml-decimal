@@ -84,8 +84,8 @@ val to_tuple : t -> int * string * int
 
 val abs : t -> t
 val adjusted : t -> int
-val negate : ?context:Context.t -> t
-val posate : ?context:Context.t -> t
+val negate : ?context:Context.t -> t -> t
+val posate : ?context:Context.t -> t -> t
 
 val sign : t -> int
 (** [sign t] is [-1] if t is negative, and [1] otherwise. *)
@@ -96,7 +96,10 @@ val sub : ?context:Context.t -> t -> t -> t
 val mul : ?context:Context.t -> t -> t -> t
 
 val div_rem : ?context:Context.t -> t -> t -> t * t
-(** [div_rem ?context t1 t2] is [(t1 / t2, t1 mod t2)]. *)
+(** [div_rem ?context t1 t2] is [(t1 / t2, t1 % t2)]. *)
+
+val rem : ?context:Context.t -> t -> t -> t
+(** [rem ?context t1 t2] is [t1 % t2]. *)
 
 val ( ~- ) : t -> t
 val ( ~+ ) : t -> t
@@ -108,3 +111,4 @@ val ( >= ) : t -> t -> bool
 val ( + ) : t -> t -> t
 val ( - ) : t -> t -> t
 val ( * ) : t -> t -> t
+val ( % ) : t -> t -> t

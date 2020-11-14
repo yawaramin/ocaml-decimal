@@ -866,6 +866,18 @@ let div_rem ?(context=Context.default ()) t1 t2 =
     let quotient, remainder = divide context t1 t2 in
     quotient, fix context remainder
 
+let rem ?(context=Context.default ()) t1 t2 = match t1, t2 with
+  | NaN, _ -> NaN
+  | _, NaN -> NaN
+  | Inf _, _ -> Context.raise ~msg:"Inf % x" Invalid_operation context
+  | Normal { coef = "0"; _ }, Normal { coef = "0"; _ } ->
+    Context.raise ~msg:"0 % 0" Div_undefined context
+  | _, Normal { coef = "0"; _ } ->
+    Context.raise ~msg:"x % 0" Invalid_operation context
+  | _ ->
+    let _, remainder = divide context t1 t2 in
+    fix context remainder
+
 let ( ~- ) t = negate t
 let ( ~+ ) t = posate t
 let ( < ) t1 t2 = compare t1 t2 = -1
@@ -876,3 +888,4 @@ let ( = ) t1 t2 = compare t1 t2 = 0
 let ( + ) t1 t2 = add t1 t2
 let ( - ) t1 t2 = sub t1 t2
 let ( * ) t1 t2 = mul t1 t2
+let ( % ) t1 t2 = rem t1 t2
