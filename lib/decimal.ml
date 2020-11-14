@@ -916,14 +916,14 @@ let div ?(context=Context.default ()) t1 t2 =
         Z.(div_rem int1 (int2 * (pow z10 shift)))
     in
     let coef =
-      if Z.(remainder <> zero && coef mod (of_int 5) = zero)
+      if Z.(remainder <> zero && coef mod (of_int 5) = zero) then
         (* result is not exact; adjust to ensure correct rounding *)
-        then Z.(coef + one)
+        Z.(coef + one)
       else begin
         (* result is exact; get as close to ideal exponent as possible *)
         let ideal_exp = normal1.exp - normal2.exp in
         let r_coef = ref coef in
-        while !exp < ideal_exp && Z.(!r_coef mod z10 <> zero) do
+        while !exp < ideal_exp && Z.(!r_coef mod z10 = zero) do
           r_coef := Z.(!r_coef / z10);
           incr exp
         done;
