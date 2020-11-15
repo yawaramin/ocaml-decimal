@@ -40,8 +40,8 @@ module Sign = struct
   let min t1 t2 = match t1, t2 with Pos, _ | _, Pos -> Pos | _ -> Neg
 end
 
-type normal = { sign : Sign.t; coef : string; exp : int }
-type t = Normal of normal | Inf of Sign.t | NaN
+type finite = { sign : Sign.t; coef : string; exp : int }
+type t = Finite of finite | Inf of Sign.t | NaN
 
 module Context = struct
   type round =
@@ -207,7 +207,7 @@ module Context = struct
       | Floor, Neg ->
         Inf sign
       | _ ->
-        Normal {
+        Finite {
           sign;
           coef = String.make t.prec '9';
           exp = t.e_max - t.prec + 1;
@@ -271,8 +271,8 @@ end
 let infinity = Inf Pos
 let neg_infinity = Inf Neg
 let nan = NaN
-let one = Normal { sign = Pos; coef = "1"; exp = 0 }
-let zero = Normal { sign = Pos; coef = "0"; exp = 0 }
+let one = Finite { sign = Pos; coef = "1"; exp = 0 }
+let zero = Finite { sign = Pos; coef = "0"; exp = 0 }
 
 let get_sign value = Sign.of_string (Str.matched_group 1 value)
 let get_fracpart = Str.matched_group 3
@@ -295,10 +295,10 @@ let of_string ?(context=Context.default ()) value =
   else if Str.string_match Of_string.nan value 0 then
     nan
   else if Str.string_match Of_string.whole value 0 then
-    Normal { exp = 0; coef = get_coef value; sign = get_sign value }
+    Finite { exp = 0; coef = get_coef value; sign = get_sign value }
   else if Str.string_match Of_string.frac value 0 then
     let fracpart = get_fracpart value in
-    Normal {
+    Finite {
       sign = get_sign value;
       coef = get_coef value ^ fracpart;
       exp = -String.length fracpart;
@@ -308,7 +308,7 @@ let of_string ?(context=Context.default ()) value =
     let exp = int_of_string (
       Str.matched_group 4 value ^ Str.matched_group 5 value)
     in
-    Normal {
+    Finite {
       sign = get_sign value;
       coef = get_coef value ^ fracpart;
       exp = exp - String.length fracpart;
@@ -318,7 +318,7 @@ let of_string ?(context=Context.default ()) value =
 
 let of_int value =
   let sign = if value >= 0 then Sign.Pos else Neg in
-  Normal { sign; coef = string_of_int (abs value); exp = 0 }
+  Finite { sign; coef = string_of_int (abs value); exp = 0 }
 
 let of_float ?(context=Context.default ()) value =
   let float_str = string_of_float value in
@@ -335,20 +335,20 @@ let of_float ?(context=Context.default ()) value =
     let str = value |> Float.abs |> string_of_float in
     match String.split_on_char '.' str with
     | [coef; ""] ->
-      Normal { sign; coef; exp = 1 }
+      Finite { sign; coef; exp = 1 }
     | [coef; frac] ->
-      Normal { sign; coef = coef ^ frac; exp = -String.length frac }
+      Finite { sign; coef = coef ^ frac; exp = -String.length frac }
     | _ ->
       Context.raise ~msg:float_str Conversion_syntax context
 
-let to_bool = function Normal { coef = "0"; _ } -> false | _ -> true
+let to_bool = function Finite { coef = "0"; _ } -> false | _ -> true
 
 let to_string ?(eng=false) ?(context=Context.default ()) = function
   | Inf sign ->
     Sign.to_string sign ^ "Infinity"
   | NaN ->
     "NaN"
-  | Normal { sign; coef; exp } ->
+  | Finite { sign; coef; exp } ->
     (* Number of digits of coef to left of decimal point *)
     let leftdigits = exp + String.length coef in
 
@@ -394,18 +394,18 @@ let pp f t = t |> to_string |> Format.pp_print_string f
 let to_rational = function
   | Inf _ -> invalid_arg "to_ratio: cannot handle Infinity"
   | NaN -> invalid_arg "to_ratio: cannot handle NaN"
-  | Normal { coef = "0"; _ } -> Q.of_ints 0 1
+  | Finite { coef = "0"; _ } -> Q.of_ints 0 1
   | t -> t |> to_string |> Q.of_string
 
 let to_tuple = function
   | Inf sign -> Sign.to_int sign, "Inf", 0
   | NaN -> 1, "NaN", 0
-  | Normal { sign; coef; exp } -> Sign.to_int sign, coef, exp
+  | Finite { sign; coef; exp } -> Sign.to_int sign, coef, exp
 
 let sign_t = function
   | NaN -> Sign.Pos
   | Inf sign
-  | Normal { sign; _ } -> sign
+  | Finite { sign; _ } -> sign
 
 let sign t = t |> sign_t |> Sign.to_int
 
@@ -413,7 +413,7 @@ let adjust exp coef = exp + String.length coef - 1
 
 let adjusted = function
   | Inf _ | NaN -> 0
-  | Normal { exp; coef; _ } -> adjust exp coef
+  | Finite { exp; coef; _ } -> adjust exp coef
 
 let zero_pad_right n string =
   if n < 1 then string
@@ -436,18 +436,18 @@ let compare t1 t2 = match t1, t2 with
     1
 
   (* Deal with zeros *)
-  | Normal { coef = "0"; _ }, Normal { coef = "0"; _ } -> 0
-  | Normal { coef = "0"; _ }, Normal { sign = s; _ } -> -Sign.to_int s
-  | Normal { sign = s; _ }, Normal { coef = "0"; _ } -> Sign.to_int s
+  | Finite { coef = "0"; _ }, Finite { coef = "0"; _ } -> 0
+  | Finite { coef = "0"; _ }, Finite { sign = s; _ } -> -Sign.to_int s
+  | Finite { sign = s; _ }, Finite { coef = "0"; _ } -> Sign.to_int s
 
   (* Simple cases of different signs *)
-  | Normal { sign = Neg as s1; _ }, Normal { sign = Pos as s2; _ }
-  | Normal { sign = Pos as s1; _ }, Normal { sign = Neg as s2; _ } ->
+  | Finite { sign = Neg as s1; _ }, Finite { sign = Pos as s2; _ }
+  | Finite { sign = Pos as s1; _ }, Finite { sign = Neg as s2; _ } ->
     compare (Sign.to_int s1) (Sign.to_int s2)
 
   (* Same sign *)
-  | Normal { coef = coef1; exp = exp1; sign },
-    Normal { coef = coef2; exp = exp2; _ } ->
+  | Finite { coef = coef1; exp = exp1; sign },
+    Finite { coef = coef2; exp = exp2; _ } ->
     begin match compare (adjust exp1 coef1) (adjust exp2 coef2) with
     | 0 ->
       let padded1 = zero_pad_right (exp1 - exp2) coef1 in
@@ -464,7 +464,7 @@ let compare t1 t2 = match t1, t2 with
     end
 
 let abs = function
-  | Normal { sign = Neg; coef; exp } -> Normal { sign = Pos; coef; exp }
+  | Finite { sign = Neg; coef; exp } -> Finite { sign = Pos; coef; exp }
   | t -> t
 
 module Round = struct
@@ -489,35 +489,35 @@ module Round = struct
   let zero_five = ['0'; '5']
 
   let down prec { coef; _ } = if all_zeros coef prec then 0 else -1
-  let up prec normal = -down prec normal
+  let up prec finite = -down prec finite
 
   let half_up prec { coef; _ } =
     if List.mem coef.[prec] gt5 then 1
     else if all_zeros coef prec then 0
     else -1
 
-  let half_down prec normal =
-    if exact_half normal.coef prec then -1 else half_up prec normal
+  let half_down prec finite =
+    if exact_half finite.coef prec then -1 else half_up prec finite
 
-  let half_even prec normal =
-    if exact_half normal.coef prec && (prec = 0 || List.mem normal.coef.[prec - 1] evens) then
+  let half_even prec finite =
+    if exact_half finite.coef prec && (prec = 0 || List.mem finite.coef.[prec - 1] evens) then
       -1
     else
-      half_up prec normal
+      half_up prec finite
 
-  let ceiling prec normal = match normal.sign with
-    | Neg -> down prec normal
-    | Pos -> -down prec normal
+  let ceiling prec finite = match finite.sign with
+    | Neg -> down prec finite
+    | Pos -> -down prec finite
 
-  let floor prec normal = match normal.sign with
-    | Pos -> down prec normal
-    | Neg -> -down prec normal
+  let floor prec finite = match finite.sign with
+    | Pos -> down prec finite
+    | Neg -> -down prec finite
 
-  let zero_five_up prec normal =
-    if prec > 0 && not (List.mem normal.coef.[prec - 1] zero_five) then
-      down prec normal
+  let zero_five_up prec finite =
+    if prec > 0 && not (List.mem finite.coef.[prec - 1] zero_five) then
+      down prec finite
     else
-      -down prec normal
+      -down prec finite
 
   let with_function = function
     | Context.Down -> down
@@ -535,36 +535,36 @@ let add_one coef = Z.(coef |> of_string |> succ |> to_string)
 let rescale exp round = function
   | (Inf _ | NaN) as t ->
     t
-  | Normal ({ coef = "0"; _ } as normal) ->
-    Normal { normal with exp }
-  | Normal normal ->
-    if normal.exp >= exp then
-      Normal {
-        normal with
-        coef = zero_pad_right (normal.exp - exp) normal.coef;
+  | Finite ({ coef = "0"; _ } as finite) ->
+    Finite { finite with exp }
+  | Finite finite ->
+    if finite.exp >= exp then
+      Finite {
+        finite with
+        coef = zero_pad_right (finite.exp - exp) finite.coef;
         exp;
       }
     else
       (* too many digits; round and lose data. If [adjusted t < exp2 - 1],
          replace [t] by [10 ** exp2 - 1] before rounding *)
-      let digits = String.length normal.coef + normal.exp - exp in
-      let normal, digits =
-        if digits < 0 then { normal with coef = "1"; exp = exp - 1 }, 0
-        else normal, digits
+      let digits = String.length finite.coef + finite.exp - exp in
+      let finite, digits =
+        if digits < 0 then { finite with coef = "1"; exp = exp - 1 }, 0
+        else finite, digits
       in
-      let coef = match String.sub normal.coef 0 digits with "" -> "0" | c -> c in
-      let coef = match Round.with_function round digits normal with
+      let coef = match String.sub finite.coef 0 digits with "" -> "0" | c -> c in
+      let coef = match Round.with_function round digits finite with
         | 1 -> add_one coef
         | _ -> coef
       in
-      Normal { normal with coef; exp }
+      Finite { finite with coef; exp }
 
 (** [fix context t] is [t] rounded if necessary to keep it within [context.prec]
     precision. Rounds and fixes the exponent. *)
 let fix context = function
   | (Inf _ | NaN) as t ->
     t
-  | Normal ({ sign; coef; exp } as normal) as t ->
+  | Finite ({ sign; coef; exp } as finite) as t ->
     let e_tiny = Context.e_tiny context in
     let e_top = Context.e_top context in
     if coef = "0" then
@@ -572,7 +572,7 @@ let fix context = function
       let new_exp = min (max exp e_tiny) exp_max in
       if new_exp <> exp then begin
         Context.raise Clamped context;
-        Normal { normal with exp = new_exp }
+        Finite { finite with exp = new_exp }
       end
       else t
     else
@@ -591,12 +591,12 @@ let fix context = function
         (* round if has too many digits *)
         if exp < exp_min then
           let digits = len_coef + exp - exp_min in
-          let normal, digits =
-            if digits < 0 then { normal with coef = "1"; exp = exp_min - 1 }, 0
-            else normal, digits
+          let finite, digits =
+            if digits < 0 then { finite with coef = "1"; exp = exp_min - 1 }, 0
+            else finite, digits
           in
-          let changed = Round.with_function context.round digits normal in
-          let coef = match String.sub normal.coef 0 digits with
+          let changed = Round.with_function context.round digits finite in
+          let coef = match String.sub finite.coef 0 digits with
             | "" -> "0"
             | c -> c
           in
@@ -616,7 +616,7 @@ let fix context = function
             if exp_min > e_top then
               Context.raise ~msg:"above e_max" (Overflow sign) context
             else
-              Normal { normal with coef; exp = exp_min }
+              Finite { finite with coef; exp = exp_min }
           in
           (* raise the appropriate signals, taking care to respect the
              precedence described in the specification *)
@@ -634,7 +634,7 @@ let fix context = function
           if context.clamp && exp > e_top then begin
             Context.raise Clamped context;
             let padded = zero_pad_right (exp - e_top) coef in
-            Normal { normal with coef = padded; exp = e_top }
+            Finite { finite with coef = padded; exp = e_top }
           end
           else
             t
@@ -642,7 +642,7 @@ let fix context = function
 
 let z10 = Z.of_int 10
 
-let normalize prec tmp other =
+let finiteize prec tmp other =
   let tmp_len = String.length tmp.coef in
   let other_len = String.length other.coef in
   let exp = tmp.exp + min ~-1 (tmp_len - prec - 2) in
@@ -660,24 +660,24 @@ let normalize prec tmp other =
   let tmp = { tmp with coef; exp = other.exp } in
   tmp, other
 
-(** [normalize ?prec normal1 normal2] is [(op1, op2)] normalized to have the
+(** [finiteize ?prec finite1 finite2] is [(op1, op2)] finiteized to have the
     same exp and length of coefficient. Done during addition. *)
-let normalize ?(prec=0) normal1 normal2 =
-  if normal1.exp < normal2.exp then normalize prec normal2 normal1
-  else normalize prec normal1 normal2
+let finiteize ?(prec=0) finite1 finite2 =
+  if finite1.exp < finite2.exp then finiteize prec finite2 finite1
+  else finiteize prec finite1 finite2
 
 let negate ?(context=Context.default ()) = function
   | NaN as t -> t
   | Inf sign -> Inf (Sign.negate sign)
-  | Normal { coef = "0"; _ } as t when context.round <> Floor ->
+  | Finite { coef = "0"; _ } as t when context.round <> Floor ->
     t |> abs |> fix context
-  | Normal normal ->
-    fix context (Normal { normal with sign = Sign.negate normal.sign })
+  | Finite finite ->
+    fix context (Finite { finite with sign = Sign.negate finite.sign })
 
 let posate ?(context=Context.default ()) = function
   | NaN as t -> t
   | Inf _ -> infinity
-  | Normal { coef = "0"; _ } as t when context.round <> Floor -> abs t
+  | Finite { coef = "0"; _ } as t when context.round <> Floor -> abs t
   | t -> fix context t
 
 let add ?(context=Context.default ()) t1 t2 = match t1, t2 with
@@ -695,77 +695,77 @@ let add ?(context=Context.default ()) t1 t2 = match t1, t2 with
     t1
   | _, Inf _ ->
     t2
-  | Normal normal1, Normal normal2 ->
-    let exp = min normal1.exp normal2.exp in
+  | Finite finite1, Finite finite2 ->
+    let exp = min finite1.exp finite2.exp in
 
     (* If the answer is 0, the sign should be negative *)
-    let negativezero = context.round = Floor && normal1.sign <> normal2.sign in
+    let negativezero = context.round = Floor && finite1.sign <> finite2.sign in
 
-    (* Can compare the strings here because they've been normalized *)
-    match normal1.coef, normal2.coef with
+    (* Can compare the strings here because they've been finiteized *)
+    match finite1.coef, finite2.coef with
     (* One or both are zeroes *)
     | "0", "0" ->
       let sign =
-        if negativezero then Sign.Neg else Sign.min normal1.sign normal2.sign
+        if negativezero then Sign.Neg else Sign.min finite1.sign finite2.sign
       in
-      fix context (Normal { sign; coef = "0"; exp })
+      fix context (Finite { sign; coef = "0"; exp })
     | "0", _ ->
-      let exp = max exp (normal2.exp - context.prec - 1) in
+      let exp = max exp (finite2.exp - context.prec - 1) in
       t2 |> rescale exp context.round |> fix context
     | _, "0" ->
-      let exp = max exp (normal1.exp - context.prec - 1) in
+      let exp = max exp (finite1.exp - context.prec - 1) in
       t1 |> rescale exp context.round |> fix context
 
     (* Neither is zero *)
     | _ ->
-      let finalize normal1 normal2 result =
-        let int1 = Z.of_string normal1.coef in
-        let int2 = Z.of_string normal2.coef in
-        let coef = match normal2.sign with
+      let finalize finite1 finite2 result =
+        let int1 = Z.of_string finite1.coef in
+        let int2 = Z.of_string finite2.coef in
+        let coef = match finite2.sign with
           | Pos -> Z.add int1 int2
           | Neg -> Z.sub int1 int2
         in
         fix
           context
-          (Normal { result with coef = Z.to_string coef; exp = normal1.exp })
+          (Finite { result with coef = Z.to_string coef; exp = finite1.exp })
       in
-      let normal1, normal2 = normalize ~prec:context.prec normal1 normal2 in
+      let finite1, finite2 = finiteize ~prec:context.prec finite1 finite2 in
       let result = { sign = Pos; coef = "0"; exp = 1 } in
-      match normal1.sign, normal2.sign with
+      match finite1.sign, finite2.sign with
         | Pos, Neg
         | Neg, Pos ->
           (* Equal and opposite *)
-          if normal1.coef = normal2.coef then
-            fix context (Normal {
+          if finite1.coef = finite2.coef then
+            fix context (Finite {
               sign = if negativezero then Neg else Pos;
               coef = "0";
               exp;
             })
           else
-            let normal1, normal2 =
-              if normal1.coef < normal2.coef then normal2, normal1
-              (* OK, now abs(normal1) > abs(normal2) *)
-              else normal1, normal2
+            let finite1, finite2 =
+              if finite1.coef < finite2.coef then finite2, finite1
+              (* OK, now abs(finite1) > abs(finite2) *)
+              else finite1, finite2
             in
-            let result, normal1, normal2 =
-              if normal1.sign = Neg then
+            let result, finite1, finite2 =
+              if finite1.sign = Neg then
                 { result with sign = Neg },
-                { normal1 with sign = normal2.sign },
-                { normal2 with sign = normal1.sign }
+                { finite1 with sign = finite2.sign },
+                { finite2 with sign = finite1.sign }
               else
                 { result with sign = Pos },
-                normal1,
-                normal2
-                (* So we know the sign, and normal1 > 0 *)
+                finite1,
+                finite2
+                (* So we know the sign, and finite1 > 0 *)
             in
-            finalize normal1 normal2 result
+            finalize finite1 finite2 result
         | Neg, _ ->
           let result = { result with sign = Neg } in
-          let normal1 = { normal1 with sign = Pos } in
-          let normal2 = { normal2 with sign = Pos } in
-          finalize normal1 normal2 result
+          let finite1 = { finite1 with sign = Pos } in
+          let finite2 = { finite2 with sign = Pos } in
+          finalize finite1 finite2 result
         | _ ->
-          finalize normal1 normal2 { result with sign = Pos }
+          finalize finite1 finite2 { result with sign = Pos }
 
 let sub ?(context=Context.default ()) t1 t2 = add ~context t1 (negate t2)
 
@@ -773,33 +773,33 @@ let mul ?(context=Context.default ()) t1 t2 = match t1, t2 with
   | NaN, _
   | _, NaN ->
     NaN
-  | Inf _, Normal { coef = "0"; _ } ->
+  | Inf _, Finite { coef = "0"; _ } ->
     Context.raise ~msg:"(+-)INF * 0" Invalid_operation context
-  | Normal { coef = "0"; _ }, Inf _ ->
+  | Finite { coef = "0"; _ }, Inf _ ->
     Context.raise ~msg:"0 * (+-)INF" Invalid_operation context
   | Inf sign1, Inf sign2
-  | Inf sign1, Normal { sign = sign2; _ } ->
+  | Inf sign1, Finite { sign = sign2; _ } ->
     Inf (Sign.xor sign1 sign2)
-  | Normal { sign = sign1; _ }, Inf sign2 ->
+  | Finite { sign = sign1; _ }, Inf sign2 ->
     Inf (Sign.xor sign1 sign2)
-  | Normal normal1, Normal normal2 ->
-    let sign = Sign.xor normal1.sign normal2.sign in
-    let exp = normal1.exp + normal2.exp in
-    match normal1, normal2 with
+  | Finite finite1, Finite finite2 ->
+    let sign = Sign.xor finite1.sign finite2.sign in
+    let exp = finite1.exp + finite2.exp in
+    match finite1, finite2 with
     (* Special case for multiplying by zero *)
     | { coef = "0"; _ }, _
     | _, { coef = "0"; _ } ->
-      fix context (Normal { sign; coef = "0"; exp })
+      fix context (Finite { sign; coef = "0"; exp })
 
     (* Special case for multiplying by power of 10 *)
     | { coef = "1"; _ }, { coef; _}
     | { coef; _ }, { coef = "1"; _ } ->
-      fix context (Normal { sign; coef; exp })
+      fix context (Finite { sign; coef; exp })
     | _ ->
       let coef =
-        Z.(to_string (of_string normal1.coef * of_string normal2.coef))
+        Z.(to_string (of_string finite1.coef * of_string finite2.coef))
       in
-      fix context (Normal { sign; coef; exp })
+      fix context (Finite { sign; coef; exp })
 
 let divide context t1 t2 =
   let expdiff = adjusted t1 - adjusted t2 in
@@ -807,10 +807,10 @@ let divide context t1 t2 =
   let exp = function
     | NaN -> invalid_arg "exp NaN"
     | Inf _ -> 0
-    | Normal { exp; _ } -> exp
+    | Finite { exp; _ } -> exp
   in
   let z t =
-    Normal { sign; coef = "0"; exp = 0 },
+    Finite { sign; coef = "0"; exp = 0 },
     rescale (exp t) context.Context.round t
   in
   match t1, t2 with
@@ -822,9 +822,9 @@ let divide context t1 t2 =
   | Inf _, _ ->
     let ans = Context.raise Invalid_operation context in
     ans, ans
-  | Normal { coef = "0"; _ }, _ ->
+  | Finite { coef = "0"; _ }, _ ->
     z t1
-  | Normal normal1, Normal normal2 ->
+  | Finite finite1, Finite finite2 ->
     (* The quotient is too large to be representable *)
     let div_impossible () =
       let ans = Context.raise
@@ -837,19 +837,19 @@ let divide context t1 t2 =
     if expdiff <= -2 then
       z t1
     else if expdiff <= context.prec then
-      let int1 = Z.of_string normal1.coef in
-      let int2 = Z.of_string normal2.coef in
+      let int1 = Z.of_string finite1.coef in
+      let int2 = Z.of_string finite2.coef in
       let int1, int2 =
-        if normal1.exp >= normal2.exp then
-          Z.mul int1 (Z.pow z10 (normal1.exp - normal2.exp)), int2
+        if finite1.exp >= finite2.exp then
+          Z.mul int1 (Z.pow z10 (finite1.exp - finite2.exp)), int2
         else
-          int1, Z.mul int2 (Z.pow z10 (normal2.exp - normal1.exp))
+          int1, Z.mul int2 (Z.pow z10 (finite2.exp - finite1.exp))
       in
       let q, r = Z.div_rem int1 int2 in
       if Z.(lt q (pow z10 context.prec)) then
-        let ideal_exp = min normal1.exp normal2.exp in
-        Normal { sign; coef = Z.to_string q; exp = 0 },
-        Normal { sign = normal1.sign; coef = Z.to_string r; exp = ideal_exp }
+        let ideal_exp = min finite1.exp finite2.exp in
+        Finite { sign; coef = Z.to_string q; exp = 0 },
+        Finite { sign = finite1.sign; coef = Z.to_string r; exp = ideal_exp }
       else
         div_impossible ()
     else
@@ -865,10 +865,10 @@ let div_rem ?(context=Context.default ()) t1 t2 =
     ans, ans
   | Inf _, _ ->
     Inf sign, Context.raise ~msg:"Inf % x" Invalid_operation context
-  | Normal { coef = "0"; _ }, Normal { coef = "0"; _ } ->
+  | Finite { coef = "0"; _ }, Finite { coef = "0"; _ } ->
     let ans = Context.raise ~msg:"div_rem 0 0" Div_undefined context in
     ans, ans
-  | _, Normal { coef = "0"; _ } ->
+  | _, Finite { coef = "0"; _ } ->
     Context.raise ~msg:"x / 0" (Div_by_zero sign) context,
     Context.raise ~msg:"x % 0" Invalid_operation context
   | _ ->
@@ -879,9 +879,9 @@ let rem ?(context=Context.default ()) t1 t2 = match t1, t2 with
   | NaN, _ -> NaN
   | _, NaN -> NaN
   | Inf _, _ -> Context.raise ~msg:"Inf % x" Invalid_operation context
-  | Normal { coef = "0"; _ }, Normal { coef = "0"; _ } ->
+  | Finite { coef = "0"; _ }, Finite { coef = "0"; _ } ->
     Context.raise ~msg:"0 % 0" Div_undefined context
-  | _, Normal { coef = "0"; _ } ->
+  | _, Finite { coef = "0"; _ } ->
     Context.raise ~msg:"x % 0" Invalid_operation context
   | _ ->
     let _, remainder = divide context t1 t2 in
@@ -889,7 +889,7 @@ let rem ?(context=Context.default ()) t1 t2 = match t1, t2 with
 
 let div ?(context=Context.default ()) t1 t2 =
   let sign () = Sign.xor (sign_t t1) (sign_t t2) in
-  let finalize sign coef exp = fix context (Normal { sign; coef; exp }) in
+  let finalize sign coef exp = fix context (Finite { sign; coef; exp }) in
   match t1, t2 with
   | NaN, _ -> NaN
   | _, NaN -> NaN
@@ -899,26 +899,26 @@ let div ?(context=Context.default ()) t1 t2 =
     Inf (sign ())
   | _, Inf _ ->
     Context.raise ~msg:"Division by Inf" Clamped context;
-    Normal { sign = sign (); coef = "0"; exp = Context.e_tiny context }
+    Finite { sign = sign (); coef = "0"; exp = Context.e_tiny context }
 
   (* Special cases for zeroes *)
-  | Normal { coef = "0"; _ }, Normal { coef = "0"; _ } ->
+  | Finite { coef = "0"; _ }, Finite { coef = "0"; _ } ->
     Context.raise ~msg:"0 / 0" Div_undefined context
-  | _, Normal { coef = "0"; _ } ->
+  | _, Finite { coef = "0"; _ } ->
     Context.raise ~msg:"x / 0" (Div_by_zero (sign ())) context
-  | Normal { coef = "0"; exp = exp1; _ }, Normal { exp = exp2; _ } ->
+  | Finite { coef = "0"; exp = exp1; _ }, Finite { exp = exp2; _ } ->
     finalize (sign ()) "0" (exp1 - exp2)
 
   (* Neither zero, Inf, or NaN *)
-  | Normal normal1, Normal normal2 ->
-    let shift = String.length normal2.coef -
-      String.length normal1.coef +
+  | Finite finite1, Finite finite2 ->
+    let shift = String.length finite2.coef -
+      String.length finite1.coef +
       context.prec +
       1
     in
-    let exp = ref (normal1.exp - normal2.exp - shift) in
-    let int1 = Z.of_string normal1.coef in
-    let int2 = Z.of_string normal2.coef in
+    let exp = ref (finite1.exp - finite2.exp - shift) in
+    let int1 = Z.of_string finite1.coef in
+    let int2 = Z.of_string finite2.coef in
     let coef, remainder =
       if shift > 0 then Z.(div_rem (int1 * (pow z10 shift)) int2)
       else
@@ -931,7 +931,7 @@ let div ?(context=Context.default ()) t1 t2 =
         Z.(coef + one)
       else begin
         (* result is exact; get as close to ideal exponent as possible *)
-        let ideal_exp = normal1.exp - normal2.exp in
+        let ideal_exp = finite1.exp - finite2.exp in
         let r_coef = ref coef in
         while !exp < ideal_exp && Z.(!r_coef mod z10 = zero) do
           r_coef := Z.(!r_coef / z10);

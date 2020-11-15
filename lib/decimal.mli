@@ -44,7 +44,7 @@ module Signal : sig
       altered in order to fit the constraints of a specific concrete
       representation.  This may occur when the exponent of a zero result would
       be outside the bounds of a representation, or when a large normal number
-      would have an encoded exponent that cannot be represented.  In this latter
+      would have an encoded exponent that cannot be represented. In this latter
       case, the exponent is reduced to fit and the corresponding number of
       zero digits are appended to the coefficient ("fold-down"). *)
 
