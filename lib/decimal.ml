@@ -13,9 +13,8 @@ module Signal = struct
   let subnormal = 8
   let overflow = 9
   let underflow = 10
-  let float_operation = 11
 
-  let make () = Array.make 12 false
+  let make () = Array.make 11 false
   let get = Array.get
   let set = Array.set
 end
@@ -61,7 +60,6 @@ module Context = struct
   | Rounded : unit flag
   | Subnormal : unit flag
   | Underflow : unit flag
-  | Float_operation : unit flag
   | Invalid_operation : t flag
   | Conversion_syntax : t flag
   | Div_by_zero : Sign.t -> t flag
@@ -124,7 +122,7 @@ module Context = struct
   let e_tiny { prec; e_min; _ } = e_min - prec + 1
   let e_top { prec; e_max; _ } = e_max - prec + 1
 
-  let idx_of_flag : type a. a flag -> Signal.id =
+  let id_of_flag : type a. a flag -> Signal.id =
     let open Signal in
     function
     | Clamped -> clamped
@@ -132,7 +130,6 @@ module Context = struct
     | Rounded -> rounded
     | Subnormal -> subnormal
     | Underflow -> underflow
-    | Float_operation -> float_operation
     | Invalid_operation -> invalid_operation
     | Conversion_syntax -> conversion_syntax
     | Div_impossible -> div_impossible
@@ -156,8 +153,6 @@ module Context = struct
       Failure (fail_msg "subnormal: " msg)
     | Underflow ->
       Failure (fail_msg "underflow: " msg)
-    | Float_operation ->
-      Failure (fail_msg "float operation: " msg)
     | Invalid_operation ->
       Failure (fail_msg "invalid operation: " msg)
     | Conversion_syntax ->
@@ -178,7 +173,6 @@ module Context = struct
     | Rounded -> ()
     | Subnormal -> ()
     | Underflow -> ()
-    | Float_operation -> ()
     | Invalid_operation -> NaN
     | Conversion_syntax -> NaN
     | Div_impossible -> NaN
@@ -199,9 +193,9 @@ module Context = struct
       end
 
   let raise ?msg flag t =
-    let idx = idx_of_flag flag in
-    Signal.set t.flags idx true;
-    if Signal.get t.traps idx then raise (exn ?msg flag)
+    let id = id_of_flag flag in
+    Signal.set t.flags id true;
+    if Signal.get t.traps id then raise (exn ?msg flag)
     else handle flag t
 end
 
@@ -304,11 +298,6 @@ let of_int value =
 
 let of_float ?(context=Context.default ()) value =
   let float_str = string_of_float value in
-  Context.raise
-    ~msg:("strict semantics for mixing floats and decimals are enabled: " ^ float_str)
-    Float_operation
-    context;
-
   if value = Float.nan then
     nan
   else if value = Float.infinity then

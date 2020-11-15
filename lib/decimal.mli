@@ -162,18 +162,6 @@ module Signal : sig
 
       In all cases, Inexact, Rounded, and Subnormal will also be raised. *)
 
-  val float_operation : id
-  (** Enable stricter semantics for mixing floats and Decimals.
-
-      If the signal is not trapped (default), mixing floats and Decimals is
-      permitted in the [Decimal.of_float] constructor and all comparison
-      operators. Both conversion and comparisons are exact. Any occurrence of a
-      mixed operation is silently recorded by setting FloatOperation in the
-      context flags. Explicit conversions with [Decimal.of_float] do not set the flag.
-
-      Otherwise (the signal is trapped), only equality comparisons and explicit
-      conversions are silent. All other mixed operations raise FloatOperation. *)
-
   val make : unit -> array
   (** [make ()] a new set of signals. All the signals are unset initially. *)
 
@@ -182,7 +170,7 @@ module Signal : sig
 
   val set : array -> id -> bool -> unit
   (** [set array id bool] sets the state of the signal [id] in [array] to
-  [bool]. *)
+      [bool]. *)
 end
 (** Signals are used to control the behaviour of the decimal functions under
     exceptional conditions. *)
