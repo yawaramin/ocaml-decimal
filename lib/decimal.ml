@@ -642,7 +642,7 @@ let fix context = function
 
 let z10 = Z.of_int 10
 
-let finiteize prec tmp other =
+let normalize prec tmp other =
   let tmp_len = String.length tmp.coef in
   let other_len = String.length other.coef in
   let exp = tmp.exp + min ~-1 (tmp_len - prec - 2) in
@@ -660,11 +660,11 @@ let finiteize prec tmp other =
   let tmp = { tmp with coef; exp = other.exp } in
   tmp, other
 
-(** [finiteize ?prec finite1 finite2] is [(op1, op2)] finiteized to have the
+(** [normalize ?prec finite1 finite2] is [(op1, op2)] normalized to have the
     same exp and length of coefficient. Done during addition. *)
-let finiteize ?(prec=0) finite1 finite2 =
-  if finite1.exp < finite2.exp then finiteize prec finite2 finite1
-  else finiteize prec finite1 finite2
+let normalize ?(prec=0) finite1 finite2 =
+  if finite1.exp < finite2.exp then normalize prec finite2 finite1
+  else normalize prec finite1 finite2
 
 let negate ?(context=Context.default ()) = function
   | NaN as t -> t
@@ -701,7 +701,7 @@ let add ?(context=Context.default ()) t1 t2 = match t1, t2 with
     (* If the answer is 0, the sign should be negative *)
     let negativezero = context.round = Floor && finite1.sign <> finite2.sign in
 
-    (* Can compare the strings here because they've been finiteized *)
+    (* Can compare the strings here because they've been normalized *)
     match finite1.coef, finite2.coef with
     (* One or both are zeroes *)
     | "0", "0" ->
@@ -729,7 +729,7 @@ let add ?(context=Context.default ()) t1 t2 = match t1, t2 with
           context
           (Finite { result with coef = Z.to_string coef; exp = finite1.exp })
       in
-      let finite1, finite2 = finiteize ~prec:context.prec finite1 finite2 in
+      let finite1, finite2 = normalize ~prec:context.prec finite1 finite2 in
       let result = { sign = Pos; coef = "0"; exp = 1 } in
       match finite1.sign, finite2.sign with
         | Pos, Neg
