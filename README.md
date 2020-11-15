@@ -17,8 +17,11 @@ for the sake of simplicity, as it is a derived work of the Python `decimal` modu
       module D = Decimal
       let i = D.of_int
       let s = D.of_string;;
-    #
+    # (* tell the REPL how to display decimals *)
       #install_printer D.pp;;
     #
       D.(s "0.1" + s "0.2");;
     - : D.t = 0.3
+    # (* default precision is 32 *)
+      D.(i 1 / i 3);;
+    - : D.t = 0.33333333333333333333333333333333

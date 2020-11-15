@@ -178,18 +178,39 @@ end
 module Context : sig
   type round =
   | Down
+  (** Round towards 0; truncate. *)
+
   | Up
+  (** Round away from 0. *)
+
   | Half_up
+  (** Round up if last significant digit is >= 5, else round down. *)
+
   | Half_down
+  (** Round up if last significant digit is > 5, else round down. *)
+
   | Half_even
+  (** Round up if last significant digit is > 5 or next-to-last significant
+      digit is odd, else round down. *)
+
   | Ceiling
+  (** Round up if last significant digit is > 0, else no change. *)
+
   | Floor
+  (** Round down if last significant digit is > 0, else no change. *)
+
   | Zero_five_up
+  (** Round zero or five away from 0. *)
 
   type t
+  (** Controls, precision, rounding, traps (exception handling), etc. settings. *)
 
   val default : unit -> t
+  (** [default ()] is the current thread-local context. May change between
+      calls. *)
+
   val set_default : t -> unit
+  (** [set_default t] sets [t] as the current thread-local context. *)
 
   val make :
     ?prec:int ->
@@ -200,6 +221,17 @@ module Context : sig
     ?clamp:bool ->
     unit ->
     t
+  (** [make ?prec ?round ?e_max ?e_min ?capitals ?clamp ()] is a new context
+      value with the given settings and the following traps configured:
+
+      - [conversion_syntax]
+      - [invalid_operation]
+      - [div_by_zero]
+      - [overflow]
+
+      These may be overridden by using
+      [Signal.set (Context.traps context) id bool], or setting a new default
+      context. *)
 
   val prec : t -> int
   val round : t -> round
@@ -211,12 +243,16 @@ module Context : sig
   val flags : t -> Signal.array
 
   val e_tiny : t -> int
+  (** [e_tiny t] is [e_min t - prec t + 1], the minimum allowable exponent of
+      context [t]. *)
 
   val e_top : t -> int
   (** [e_top t] is the maximum exponent of context [t]. *)
 end
 
 type t
+(** A decimal floating-point number. All operations are done in radix (base)
+    10. *)
 
 val infinity : t
 val neg_infinity : t
@@ -225,8 +261,12 @@ val one : t
 val zero : t
 
 val of_int : int -> t
-val of_float : ?context:Context.t -> float -> t
 val of_string : ?context:Context.t -> string -> t
+
+val of_float : ?context:Context.t -> float -> t
+(** [of_float ?context float] is the decimal representation of the [float]. This
+    suffers from floating-point precision loss; the other constructors should be
+    preferred. *)
 
 val to_bool : t -> bool
 val to_rational : t -> Q.t
@@ -240,14 +280,22 @@ val to_tuple : t -> int * string * int
 val abs : t -> t
 val adjusted : t -> int
 val negate : ?context:Context.t -> t -> t
+
 val posate : ?context:Context.t -> t -> t
+(** Opposite of [negate]; a no-op. *)
 
 val sign : t -> int
 (** [sign t] is [-1] if t is negative, and [1] otherwise. *)
 
 val compare : t -> t -> int
+(** [compare t1 t2] is -1 if [t1 < t2], 0 if [t1 = t2], 1 if [t1 > t2]. *)
+
 val min : t -> t -> t
+(** [min t1 t2] is the smaller of [t1] and [t2]. *)
+
 val max : t -> t -> t
+(** [max t1 t2] is the larger of [t1] and [t2]. *)
+
 val add : ?context:Context.t -> t -> t -> t
 val sub : ?context:Context.t -> t -> t -> t
 val mul : ?context:Context.t -> t -> t -> t
