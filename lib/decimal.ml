@@ -345,7 +345,7 @@ let to_bool = function Finite { coef = "0"; _ } -> false | _ -> true
 
 let to_string ?(eng=false) ?(context=Context.default ()) = function
   | Inf sign ->
-    Sign.to_string sign ^ "Infinity"
+    Sign.to_string sign ^ "∞"
   | NaN ->
     "NaN"
   | Finite { sign; coef; exp } ->
@@ -392,13 +392,13 @@ let to_string ?(eng=false) ?(context=Context.default ()) = function
 let pp f t = t |> to_string |> Format.pp_print_string f
 
 let to_rational = function
-  | Inf _ -> invalid_arg "to_ratio: cannot handle Infinity"
+  | Inf _ -> invalid_arg "to_ratio: cannot handle ∞"
   | NaN -> invalid_arg "to_ratio: cannot handle NaN"
   | Finite { coef = "0"; _ } -> Q.of_ints 0 1
   | t -> t |> to_string |> Q.of_string
 
 let to_tuple = function
-  | Inf sign -> Sign.to_int sign, "Inf", 0
+  | Inf sign -> Sign.to_int sign, "∞", 0
   | NaN -> 1, "NaN", 0
   | Finite { sign; coef; exp } -> Sign.to_int sign, coef, exp
 
@@ -640,7 +640,7 @@ let fix context = function
             t
         end
 
-let z10 = Z.of_int 10
+let z10 = Calc.z10
 
 let normalize prec tmp other =
   let tmp_len = String.length tmp.coef in
@@ -690,7 +690,7 @@ let add ?(context=Context.default ()) t1 t2 = match t1, t2 with
     neg_infinity
   | Inf Pos, Inf Neg
   | Inf Neg, Inf Pos ->
-    Context.raise ~msg:"-Infinity + Infinity" Invalid_operation context
+    Context.raise ~msg:"-∞ + ∞" Invalid_operation context
   | Inf _, _ ->
     t1
   | _, Inf _ ->
@@ -774,9 +774,9 @@ let mul ?(context=Context.default ()) t1 t2 = match t1, t2 with
   | _, NaN ->
     NaN
   | Inf _, Finite { coef = "0"; _ } ->
-    Context.raise ~msg:"(+-)INF * 0" Invalid_operation context
+    Context.raise ~msg:"±∞ * 0" Invalid_operation context
   | Finite { coef = "0"; _ }, Inf _ ->
-    Context.raise ~msg:"0 * (+-)INF" Invalid_operation context
+    Context.raise ~msg:"0 * ±∞" Invalid_operation context
   | Inf sign1, Inf sign2
   | Inf sign1, Finite { sign = sign2; _ } ->
     Inf (Sign.xor sign1 sign2)
@@ -792,7 +792,7 @@ let mul ?(context=Context.default ()) t1 t2 = match t1, t2 with
       fix context (Finite { sign; coef = "0"; exp })
 
     (* Special case for multiplying by power of 10 *)
-    | { coef = "1"; _ }, { coef; _}
+    | { coef = "1"; _ }, { coef; _ }
     | { coef; _ }, { coef = "1"; _ } ->
       fix context (Finite { sign; coef; exp })
     | _ ->
@@ -828,7 +828,7 @@ let divide context t1 t2 =
     (* The quotient is too large to be representable *)
     let div_impossible () =
       let ans = Context.raise
-        ~msg:"quotient too large in //, % or divmod"
+        ~msg:"quotient too large in /, (mod), or divmod"
         Div_impossible
         context
       in
@@ -861,16 +861,16 @@ let div_rem ?(context=Context.default ()) t1 t2 =
   | NaN, _
   | _, NaN -> NaN, NaN
   | Inf _, Inf _ ->
-    let ans = Context.raise ~msg:"div_rem Inf Inf" Invalid_operation context in
+    let ans = Context.raise ~msg:"div_rem ∞ ∞" Invalid_operation context in
     ans, ans
   | Inf _, _ ->
-    Inf sign, Context.raise ~msg:"Inf % x" Invalid_operation context
+    Inf sign, Context.raise ~msg:"∞ mod x" Invalid_operation context
   | Finite { coef = "0"; _ }, Finite { coef = "0"; _ } ->
     let ans = Context.raise ~msg:"div_rem 0 0" Div_undefined context in
     ans, ans
   | _, Finite { coef = "0"; _ } ->
     Context.raise ~msg:"x / 0" (Div_by_zero sign) context,
-    Context.raise ~msg:"x % 0" Invalid_operation context
+    Context.raise ~msg:"x mod 0" Invalid_operation context
   | _ ->
     let quotient, remainder = divide context t1 t2 in
     quotient, fix context remainder
@@ -878,7 +878,7 @@ let div_rem ?(context=Context.default ()) t1 t2 =
 let rem ?(context=Context.default ()) t1 t2 = match t1, t2 with
   | NaN, _ -> NaN
   | _, NaN -> NaN
-  | Inf _, _ -> Context.raise ~msg:"Inf % x" Invalid_operation context
+  | Inf _, _ -> Context.raise ~msg:"∞ mod x" Invalid_operation context
   | Finite { coef = "0"; _ }, Finite { coef = "0"; _ } ->
     Context.raise ~msg:"0 % 0" Div_undefined context
   | _, Finite { coef = "0"; _ } ->
@@ -894,11 +894,11 @@ let div ?(context=Context.default ()) t1 t2 =
   | NaN, _ -> NaN
   | _, NaN -> NaN
   | Inf _, Inf _ ->
-    Context.raise ~msg:"(+/-)Inf / (+/-)Inf" Invalid_operation context
+    Context.raise ~msg:"±∞ / ±∞" Invalid_operation context
   | Inf _, _ ->
     Inf (sign ())
   | _, Inf _ ->
-    Context.raise ~msg:"Division by Inf" Clamped context;
+    Context.raise ~msg:"Division by ∞" Clamped context;
     Finite { sign = sign (); coef = "0"; exp = Context.e_tiny context }
 
   (* Special cases for zeroes *)
@@ -909,7 +909,7 @@ let div ?(context=Context.default ()) t1 t2 =
   | Finite { coef = "0"; exp = exp1; _ }, Finite { exp = exp2; _ } ->
     finalize (sign ()) "0" (exp1 - exp2)
 
-  (* Neither zero, Inf, or NaN *)
+  (* Neither zero, ∞, or NaN *)
   | Finite finite1, Finite finite2 ->
     let shift = String.length finite2.coef -
       String.length finite1.coef +
