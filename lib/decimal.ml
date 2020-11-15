@@ -187,6 +187,7 @@ module Context = struct
     | Overflow _ ->
       Failure (fail_msg "overflow: " msg)
 
+  (** [handle flag t] is the result of handling [flag] in the context [t]. *)
   let handle : type a. a flag -> t -> a = fun flag t ->
     match flag with
     | Clamped -> ()
@@ -213,11 +214,13 @@ module Context = struct
         }
       end
 
+  (** [raise ?msg flag t] sets the [flag], then either handles the signal and
+      possibly returns a result, or raises an exception (if set to trap the
+      signal). *)
   let raise ?msg flag t =
     let id = id_of_flag flag in
     Signal.set t.flags id true;
-    if Signal.get t.traps id then raise (exn ?msg flag)
-    else handle flag t
+    if Signal.get t.traps id then raise (exn ?msg flag) else handle flag t
 end
 
 module Of_string = struct
