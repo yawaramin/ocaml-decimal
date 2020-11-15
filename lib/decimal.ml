@@ -17,6 +17,32 @@ module Signal = struct
   let make () = Array.make 11 false
   let get = Array.get
   let set = Array.set
+
+  let pp f array  =
+    let open Format in
+    pp_print_string f "{ clamped = ";
+    pp_print_string f (string_of_bool array.(clamped));
+    pp_print_string f "; invalid_operation = ";
+    pp_print_string f (string_of_bool array.(invalid_operation));
+    pp_print_string f "; conversion_syntax = ";
+    pp_print_string f (string_of_bool array.(conversion_syntax));
+    pp_print_string f "; div_by_zero = ";
+    pp_print_string f (string_of_bool array.(div_by_zero));
+    pp_print_string f "; div_impossible = ";
+    pp_print_string f (string_of_bool array.(div_impossible));
+    pp_print_string f "; div_undefined = ";
+    pp_print_string f (string_of_bool array.(div_undefined));
+    pp_print_string f "; inexact = ";
+    pp_print_string f (string_of_bool array.(inexact));
+    pp_print_string f "; rounded = ";
+    pp_print_string f (string_of_bool array.(rounded));
+    pp_print_string f "; subnormal = ";
+    pp_print_string f (string_of_bool array.(subnormal));
+    pp_print_string f "; overflow = ";
+    pp_print_string f (string_of_bool array.(overflow));
+    pp_print_string f "; underflow = ";
+    pp_print_string f (string_of_bool array.(underflow));
+    pp_print_string f " }"
 end
 
 module Sign = struct

@@ -37,6 +37,18 @@ module Signal : sig
   type array
   (** Contains the set of signals. *)
 
+  val make : unit -> array
+  (** [make ()] a new set of signals. All the signals are unset initially. *)
+
+  val get : array -> id -> bool
+  (** [get array id] is the set/unset state of the signal [id] in [array]. *)
+
+  val set : array -> id -> bool -> unit
+  (** [set array id bool] sets the state of the signal [id] in [array] to
+      [bool]. *)
+
+  val pp : Format.formatter -> array -> unit
+
   val clamped : id
   (** Exponent of a 0 changed to fit bounds.
 
@@ -161,16 +173,6 @@ module Signal : sig
       0 with the sign of the intermediate result and an exponent of Etiny.
 
       In all cases, Inexact, Rounded, and Subnormal will also be raised. *)
-
-  val make : unit -> array
-  (** [make ()] a new set of signals. All the signals are unset initially. *)
-
-  val get : array -> id -> bool
-  (** [get array id] is the set/unset state of the signal [id] in [array]. *)
-
-  val set : array -> id -> bool -> unit
-  (** [set array id bool] sets the state of the signal [id] in [array] to
-      [bool]. *)
 end
 (** Signals are used to control the behaviour of the decimal functions under
     exceptional conditions. *)
@@ -265,6 +267,7 @@ module Context : sig
   val e_top : t -> int
   (** [e_top t] is the maximum exponent of context [t]. *)
 end
+(** Settings that control precision, rounding mode, exceptional behaviour, etc. *)
 
 type t
 (** A decimal floating-point number. All operations are done in radix (base)
