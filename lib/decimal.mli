@@ -233,6 +233,22 @@ module Context : sig
       [Signal.set (Context.traps context) id bool], or setting a new default
       context. *)
 
+  val copy :
+    orig:t ->
+    ?prec:int ->
+    ?round:round ->
+    ?e_max:int ->
+    ?e_min:int ->
+    ?capitals:bool ->
+    ?clamp:bool ->
+    ?traps:Signal.array ->
+    ?flags:Signal.array ->
+    unit ->
+    t
+  (** [copy ~orig ?prec ?round ?e_max ?e_min ?capitals ?clamp ?traps ?flags] is
+      a deep copy of [orig] with the given settings. The optional settings
+      default to the same values as those in [orig]. *)
+
   val prec : t -> int
   val round : t -> round
   val e_max : t -> int

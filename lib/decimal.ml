@@ -106,6 +106,27 @@ module Context = struct
       flags = Signal.make ();
     }
 
+  let copy
+    ~orig
+    ?(prec=orig.prec)
+    ?(round=orig.round)
+    ?(e_max=orig.e_max)
+    ?(e_min=orig.e_min)
+    ?(capitals=orig.capitals)
+    ?(clamp=orig.clamp)
+    ?(traps=Array.copy orig.traps)
+    ?(flags=Array.copy orig.flags)
+    () = {
+      prec;
+      round;
+      e_max;
+      e_min;
+      capitals;
+      clamp;
+      traps;
+      flags;
+    }
+
   let default = () |> make |> ref
   let set_default = (:=) default
   let default () = !default
