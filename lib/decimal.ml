@@ -345,7 +345,7 @@ let to_bool = function Finite { coef = "0"; _ } -> false | _ -> true
 
 let to_string ?(eng=false) ?(context=Context.default ()) = function
   | Inf sign ->
-    Sign.to_string sign ^ "∞"
+    Sign.to_string sign ^ "Inf"
   | NaN ->
     "NaN"
   | Finite { sign; coef; exp } ->
