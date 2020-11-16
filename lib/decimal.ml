@@ -968,6 +968,28 @@ let div ?(context=Context.default ()) t1 t2 =
     in
     finalize (sign ()) (Z.to_string coef) !exp
 
+let fma ?(context=Context.default ()) ~first_mul ~then_add t =
+  let product = match t, first_mul with
+    | NaN, _
+    | _, NaN ->
+      Context.raise Invalid_operation context
+    | Inf _, Finite { coef = "0"; _ } ->
+      Context.raise ~msg:"fma: ∞ × 0" Invalid_operation context
+    | Finite { coef = "0"; _ }, Inf _ ->
+      Context.raise ~msg:"fma: 0 × ∞" Invalid_operation context
+    | Inf sign1, Inf sign2
+    | Inf sign1, Finite { sign = sign2; _ }
+    | Finite { sign = sign1; _ }, Inf sign2 ->
+      Inf (Sign.xor sign1 sign2)
+    | Finite finite1, Finite finite2 ->
+      Finite {
+        sign = Sign.xor finite1.sign finite2.sign;
+        coef = Z.(to_string (of_string finite1.coef * of_string finite2.coef));
+        exp = finite1.exp + finite2.exp;
+      }
+  in
+  add ~context product then_add
+
 let ( ~- ) t = negate t
 let ( ~+ ) t = posate t
 let ( < ) t1 t2 = compare t1 t2 = -1

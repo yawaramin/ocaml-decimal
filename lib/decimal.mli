@@ -326,6 +326,13 @@ val div_rem : ?context:Context.t -> t -> t -> t * t
 val rem : ?context:Context.t -> t -> t -> t
 (** [rem ?context t1 t2] is [t1 % t2]. *)
 
+val fma : ?context:Context.t -> first_mul:t -> then_add:t -> t -> t
+(** [fma ?context ~first_mul ~then_add t] is fused multiple-add:
+    [t * first_mul + then_add] with no rounding of the intermediate product.
+
+    [t] and [first_mul] are multiplied together, then [then_add] is added to the
+    product, then a final rounding is performed. *)
+
 val ( ~- ) : t -> t
 val ( ~+ ) : t -> t
 val ( = ) : t -> t -> bool
