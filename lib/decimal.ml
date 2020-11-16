@@ -418,13 +418,13 @@ let to_string ?(eng=false) ?(context=Context.default ()) = function
 let pp f t = t |> to_string |> Format.pp_print_string f
 
 let to_rational = function
-  | Inf _ -> invalid_arg "to_ratio: cannot handle ∞"
-  | NaN -> invalid_arg "to_ratio: cannot handle NaN"
+  | Inf _ -> invalid_arg "to_rational: cannot handle ∞"
+  | NaN -> invalid_arg "to_rational: cannot handle NaN"
   | Finite { coef = "0"; _ } -> Q.of_ints 0 1
   | t -> t |> to_string |> Q.of_string
 
 let to_tuple = function
-  | Inf sign -> Sign.to_int sign, "∞", 0
+  | Inf sign -> Sign.to_int sign, "Inf", 0
   | NaN -> 1, "NaN", 0
   | Finite { sign; coef; exp } -> Sign.to_int sign, coef, exp
 
@@ -800,9 +800,9 @@ let mul ?(context=Context.default ()) t1 t2 = match t1, t2 with
   | _, NaN ->
     NaN
   | Inf _, Finite { coef = "0"; _ } ->
-    Context.raise ~msg:"±∞ * 0" Invalid_operation context
+    Context.raise ~msg:"±∞ × 0" Invalid_operation context
   | Finite { coef = "0"; _ }, Inf _ ->
-    Context.raise ~msg:"0 * ±∞" Invalid_operation context
+    Context.raise ~msg:"0 × ±∞" Invalid_operation context
   | Inf sign1, Inf sign2
   | Inf sign1, Finite { sign = sign2; _ } ->
     Inf (Sign.xor sign1 sign2)
@@ -854,7 +854,7 @@ let divide context t1 t2 =
     (* The quotient is too large to be representable *)
     let div_impossible () =
       let ans = Context.raise
-        ~msg:"quotient too large in /, (mod), or divmod"
+        ~msg:"quotient too large in /, (mod), or div_rem"
         Div_impossible
         context
       in
@@ -906,9 +906,9 @@ let rem ?(context=Context.default ()) t1 t2 = match t1, t2 with
   | _, NaN -> NaN
   | Inf _, _ -> Context.raise ~msg:"∞ mod x" Invalid_operation context
   | Finite { coef = "0"; _ }, Finite { coef = "0"; _ } ->
-    Context.raise ~msg:"0 % 0" Div_undefined context
+    Context.raise ~msg:"0 mod 0" Div_undefined context
   | _, Finite { coef = "0"; _ } ->
-    Context.raise ~msg:"x % 0" Invalid_operation context
+    Context.raise ~msg:"x mod 0" Invalid_operation context
   | _ ->
     let _, remainder = divide context t1 t2 in
     fix context remainder

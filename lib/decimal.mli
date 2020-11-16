@@ -65,15 +65,15 @@ module Signal : sig
 
       Various bad things cause this:
 
-      -INF + INF
-      0 * (+-)INF
-      (+-)INF / (+-)INF
+      -∞ + ∞
+      0 × ±∞
+      ±∞ / ±∞
       x mod 0
-      (+-)INF mod x
+      ±∞ mod x
       sqrt ~-x, x > 0
       0 ** 0
       x ** (non-integer)
-      x ** (+-)INF
+      x ** ±∞
       An operand is invalid
 
       The result of the operation after these is a [NaN]. *)
