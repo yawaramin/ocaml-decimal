@@ -14,11 +14,11 @@
 (** This is an implementation of decimal floating point arithmetic based on the
     General Decimal Arithmetic Specification:
 
-    http://speleotrove.com/decimal/decarith.html
+    {{: http://speleotrove.com/decimal/decarith.html}}
 
     and IEEE standard 854-1987:
 
-    http://en.wikipedia.org/wiki/IEEE_854-1987
+    {{: http://en.wikipedia.org/wiki/IEEE_854-1987}}
 
     Decimal floating point has finite precision with arbitrarily large bounds.
     The purpose of this module is to support arithmetic using familiar
@@ -35,7 +35,7 @@ module Signal : sig
   (** Unique identifier of a signal. *)
 
   type array
-  (** Contains the set of signals. *)
+  (** Contains a set of signals. *)
 
   val make : unit -> array
   (** [make ()] a new set of signals. All the signals are unset initially. *)
@@ -65,16 +65,16 @@ module Signal : sig
 
       Various bad things cause this:
 
-      -∞ + ∞
-      0 × ±∞
-      ±∞ / ±∞
-      x mod 0
-      ±∞ mod x
-      sqrt ~-x, x > 0
-      0 ** 0
-      x ** (non-integer)
-      x ** ±∞
-      An operand is invalid
+      - -∞ + ∞
+      - 0 × ±∞
+      - ±∞ / ±∞
+      - x mod 0
+      - ±∞ mod x
+      - sqrt ~-x, x > 0
+      - 0 ** 0
+      - x ** (non-integer)
+      - x ** ±∞
+      - An operand is invalid
 
       The result of the operation after these is a [NaN]. *)
 
@@ -257,8 +257,18 @@ module Context : sig
   val e_min : t -> int
   val capitals : t -> bool
   val clamp : t -> bool
+
   val traps : t -> Signal.array
+  (** [traps t] is the set of traps for context [t]. Traps may be set to [true]
+      or [false] using [Signal.set]; a trap set to [true] raises a runtime
+      exception when its signal is raised. One that's set to [false] causes the
+      relevant calculation to silently handle the condition and return a result
+      value (typically, [NaN]). *)
+
   val flags : t -> Signal.array
+  (** [flags t] is the set of flags for context [t]. Flags are set to [true]
+      during a calculation in a context [t], when the calculation encounters a
+      condition that triggers the flag. E.g., overflow. *)
 
   val e_tiny : t -> int
   (** [e_tiny t] is [e_min t - prec t + 1], the minimum allowable exponent of
@@ -270,8 +280,7 @@ end
 (** Settings that control precision, rounding mode, exceptional behaviour, etc. *)
 
 type t
-(** A decimal floating-point number. All operations are done in radix (base)
-    10. *)
+(** A decimal floating-point number. All operations are done in radix (base) 10. *)
 
 val infinity : t
 val neg_infinity : t
@@ -321,10 +330,10 @@ val mul : ?context:Context.t -> t -> t -> t
 val div : ?context:Context.t -> t -> t -> t
 
 val div_rem : ?context:Context.t -> t -> t -> t * t
-(** [div_rem ?context t1 t2] is [(t1 / t2, t1 % t2)]. *)
+(** [div_rem ?context t1 t2] is [(t1 / t2, t1 mod t2)]. *)
 
 val rem : ?context:Context.t -> t -> t -> t
-(** [rem ?context t1 t2] is [t1 % t2]. *)
+(** [rem ?context t1 t2] is [t1 mod t2]. *)
 
 val fma : ?context:Context.t -> first_mul:t -> then_add:t -> t -> t
 (** [fma ?context ~first_mul ~then_add t] is fused multiple-add:
