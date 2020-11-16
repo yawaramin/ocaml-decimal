@@ -1,3 +1,4 @@
 (library
   (name decimal)
+  (public_name decimal)
   (libraries str zarith))

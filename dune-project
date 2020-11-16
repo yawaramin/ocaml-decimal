@@ -13,6 +13,7 @@
   (synopsis "Arbitrary-precision floating-point decimal library")
   (description "Arbitrary-precision floating-point decimal library ported from
 the Python decimal module.")
+  (documentation "https://yawaramin.github.io/ocaml-decimal/api")
   (depends
     (ocaml (>= 4.06.0))
     (zarith (and (>= 1.10) (< 2.0.0)))))
