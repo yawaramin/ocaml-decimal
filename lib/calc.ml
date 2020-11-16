@@ -3,7 +3,11 @@
 (* let nbits = Z.numbits *)
 let z2 = Z.of_int 2
 let z10 = Z.of_int 10
+let z100 = Z.of_int 100
 let zeros = Str.regexp "0+$"
+
+(** Unreliable digits at the end of the [log10_digits] calculation *)
+let unreliable = Str.regexp "[^0]0*$"
 
 (** [decimal_lshift_exact n e] is [Some (n * 10 ** e)] if it's an integer, else
     [None]. *)
@@ -76,6 +80,7 @@ let ilog ?(l=8) x m =
 
   let y = !y in
   let r = !r in
+
   (* Taylor series with [t] terms *)
   let t = -(-10 * String.length (Z.to_string m) / 3 * l) in
   let yshift = rshift_nearest y r in
@@ -86,3 +91,61 @@ let ilog ?(l=8) x m =
   done;
 
   div_nearest Z.(!w * y) m
+
+let log10_digits = ref "23025850929940456840179914546843642076011014886"
+
+(** [log10_digits p] is [(floor 10**p) * log 10], given [p >= 0]. For example,
+    [log10_digits 3] is 2302. *)
+let log10_digits p =
+  let return () = p + 1 |> String.sub !log10_digits 0 |> Z.of_string in
+  if p < 0 then
+    invalid_arg "p should be non-negative"
+  else if p >= String.length !log10_digits then begin
+    (* compute p+3, p+6, p+9, ... digits; continue until at least one of the
+       extra digits is nonzero *)
+    let extra = ref 3 in
+    let continue = ref true in
+    let digits = ref "" in
+    while !continue do
+      (* compute p+extra digits, correct to within 1ulp *)
+      let m = Z.pow z10 (p + !extra + 2) in
+      digits := z100 |> div_nearest (ilog Z.(z10 * m) m) |> Z.to_string;
+      let check = Str.regexp (String.make !extra '0' ^ "$") in
+      continue := Str.string_match check !digits 0;
+      extra := !extra + 3
+    done;
+    (* keep all reliable digits so far; remove trailing zeroes and next non-zero
+       digit. *)
+    log10_digits := Str.replace_first unreliable "" !digits;
+    return ()
+  end else
+    return ()
+
+(** [dlog10 c e p] is an integer approximation of [10**p * log10 (c * 10**e)],
+    with an absolute error of at most 1. Assumes that:
+
+    - [c > 0]
+    - [p >= 0]
+    - [c * 10**e] is not exactly 1 *)
+let dlog10 c e p =
+  let p = p + 2 in
+  let l = c |> Z.to_string |> String.length in
+  let f =
+    let e_plus_l = e + l in
+    e_plus_l - if e_plus_l >= 1 then 1 else 0
+  in
+  let log_d, log_tenpower =
+    if p > 0 then
+      let m = Z.pow z10 p in
+      let k = e + p - f in
+      let c =
+        if k >= 0 then Z.(c * pow z10 k)
+        else div_nearest c (Z.pow z10 ~-k)
+      in
+      let log_d = ilog c m in (* error < 5 + 22 = 27 *)
+      let log_10 = log10_digits p in (* error < 1 *)
+      div_nearest Z.(log_d * m) log_10, Z.(of_int f * m)
+    else
+      Z.zero, div_nearest (Z.of_int f) (Z.pow z10 ~-p)
+  in
+  div_nearest Z.(log_tenpower + log_d) (Z.of_int 100)
