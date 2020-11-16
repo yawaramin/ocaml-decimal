@@ -49,3 +49,40 @@ let div_nearest a b =
   let open Z in
   let q, r = div_rem a b in
   q + if z2 * r + q land one > b then one else zero
+
+(** [ilog ?l x m] is the integer approximation to [m * log (x / m)], with
+    absolute error boundable in terms only of [x / m].
+
+    Given positive integers [x] and [m], return an integer approximation to
+    [m * log (x / m)]. For [l = 8] and [0.1 <= x / m <= 10] the difference
+    between the approximation and the exact result is at most 22. For [l = 8]
+    and [1.0 <= x / m <= 10.0] the difference is at most 15. In both cases
+    these are upper bounds on the error; it will usually be much smaller. *)
+let ilog ?(l=8) x m =
+  let l_minus r = l - !r in
+  let r_minus_l r = !r - l in
+  let y = ref Z.(x - m) in
+
+  (* argument reduction; r = number of reductions performed *)
+  let r = ref 0 in
+  while
+    !r <= l && Z.(abs !y lsl l_minus r >= m) ||
+    !r > l && Z.(abs !y asr r_minus_l r >= m) do
+    y := div_nearest
+      Z.((m * !y) lsl 1)
+      Z.(m + sqrt_nearest (m * (m + rshift_nearest !y !r)) m);
+    incr r
+  done;
+
+  let y = !y in
+  let r = !r in
+  (* Taylor series with [t] terms *)
+  let t = -(-10 * String.length (Z.to_string m) / 3 * l) in
+  let yshift = rshift_nearest y r in
+  let w = ref (div_nearest m (Z.of_int t)) in
+  for k = (t - 1) downto 0 do
+    let zk = Z.of_int k in
+    w := Z.(div_nearest m zk - div_nearest (yshift * !w) m)
+  done;
+
+  div_nearest Z.(!w * y) m
