@@ -12,7 +12,7 @@ let unreliable = Str.regexp "[^0]0*$"
 (** [decimal_lshift_exact n e] is [Some (n * 10 ** e)] if it's an integer, else
     [None]. *)
 let decimal_lshift_exact n e =
-  if n = Z.zero then
+  if Z.(equal n zero) then
     Some n
   else if Z.(gt n zero) then
     Some Z.(n * pow z10 e)
