@@ -111,8 +111,11 @@ let log10_digits p =
       let m = Z.pow z10 (p + !extra + 2) in
       digits := z100 |> div_nearest (ilog Z.(z10 * m) m) |> Z.to_string;
       let check = Str.regexp (String.make !extra '0' ^ "$") in
-      continue := Str.string_match check !digits 0;
-      extra := !extra + 3
+      if Str.string_match check !digits 0 then begin
+        extra := !extra + 3
+      end else begin
+        continue := false
+      end
     done;
     (* keep all reliable digits so far; remove trailing zeroes and next non-zero
        digit. *)
