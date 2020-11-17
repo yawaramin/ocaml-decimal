@@ -288,6 +288,7 @@ val nan : t
 val one : t
 val zero : t
 
+val of_bigint : Z.t -> t
 val of_int : int -> t
 val of_string : ?context:Context.t -> string -> t
 

@@ -33,22 +33,36 @@ let eval_test_directive = function
   | Clamp clamp -> () |> C.copy ~orig ~clamp |> C.set_default
   | _ -> ()
 
-let eval_test_case test_case =
+let eval_test_case {
+  P.test_id;
+  operation;
+  operands;
+  expected_result;
+  expected_exceptions;
+} =
   let context = C.copy ~orig () in
-  print_endline test_case.P.test_id;
-  begin match test_case.operation, test_case.operands with
-  | Add, [t1; t2] -> assert (D.add ~context t1 t2 = test_case.expected_result)
+  print_endline test_id;
+  begin match operation, operands with
+  | Add, [t1; t2] -> assert (D.add ~context t1 t2 = expected_result)
   | _ -> ()
   end;
-  List.iter (flag_was_set context) test_case.expected_exceptions
+  List.iter (flag_was_set context) expected_exceptions
 
 let eval_test_line = function
   | P.Directive test_directive -> eval_test_directive test_directive
   | Test_case test_case -> eval_test_case test_case
 
-let eval_test_file (_, test_lines) = List.map eval_test_line test_lines
+let eval_test_file (_, test_lines) = List.iter eval_test_line test_lines
 
 let eval_str str =
   match A.parse_string ~consume:A.Consume.All P.test_file str with
   | Ok test_file -> eval_test_file test_file
   | Error msg -> failwith msg
+
+let eval_file filename =
+  let ch = open_in filename in
+  let str = really_input_string ch (in_channel_length ch) in
+  close_in ch;
+  eval_str str
+
+let () = eval_file "./data/add.decTest"

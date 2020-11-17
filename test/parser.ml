@@ -1,3 +1,5 @@
+module D = Decimal
+
 type exception_name =
   | Clamped
   | Conversion_syntax
@@ -89,8 +91,8 @@ type operation =
 type test_case =
   { test_id : string
   ; operation : operation
-  ; operands : string list
-  ; expected_result : string
+  ; operands : D.t list
+  ; expected_result : D.t
   ; expected_exceptions : exception_name list
   }
 
@@ -126,27 +128,28 @@ let comment = string "--" *> skip_while (( <> ) '\n')
 
 let eol = ws *> opt comment *> opt (char '\r') *> char '\n'
 
-(* FIXME *)
-let number =
-  take_while1 (function
-    | 'a' .. 'z'
-    | 'A' .. 'Z'
-    | '0' .. '9'
-    | '#'
-    | '\''
-    | '"'
-    | '-'
-    | '>'
-    | '.'
-    | '_'
-    | '\\'
-    | ','
-    | '*'
-    | '+' ->
-        true
-    | _ ->
-        false)
-  >>= function "->" -> fail "invalid number: ->" | n -> return n
+let decimal_bigint =
+  let+ sign = sign
+  and+ digits = take_while1 is_digit in
+  D.of_string (Char.escaped sign ^ digits)
+
+let decimal_string =
+  let+ _ = char '\''
+  and+ sign = sign
+  and+ whole_part = take_while1 is_digit
+  and+ _ = char '.'
+  and+ frac_part = take_while1 is_digit
+  and+ _ = char '\'' in
+  D.of_string (Char.escaped sign ^ whole_part ^ "." ^ frac_part)
+
+let decimal_float =
+  let+ sign = sign
+  and+ whole_part = take_while1 is_digit
+  and+ _ = char '.'
+  and+ frac_part = take_while1 is_digit in
+  D.of_string (Char.escaped sign ^ whole_part ^ "." ^ frac_part)
+
+let decimal = decimal_bigint <|> decimal_string <|> decimal_float
 
 let exception_name =
   choice
@@ -313,8 +316,8 @@ let test_case =
     (fun test_id operation operands expected_result expected_exceptions ->
       { test_id; operation; operands; expected_result; expected_exceptions })
     ident (ws1 *> operation)
-    (ws1 *> sep_by ws1 number)
-    (ws1 *> string "->" *> ws1 *> number)
+    (ws1 *> sep_by ws1 decimal)
+    (ws1 *> string "->" *> ws1 *> decimal)
   <*> option [] (ws1 *> exceptions)
 
 let rounding =

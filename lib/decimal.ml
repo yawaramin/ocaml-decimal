@@ -53,6 +53,8 @@ module Sign = struct
     | "" | "+" -> Pos
     | s -> invalid_arg ("Sign.of_string: invalid sign: " ^ s)
 
+  let of_int value = if value >= 0 then Pos else Neg
+
   let to_int = function Neg -> -1 | Pos -> 1
   let to_string = function Pos -> "" | Neg -> "-"
   let negate = function Pos -> Neg | Neg -> Pos
@@ -342,9 +344,17 @@ let of_string ?(context=Context.default ()) value =
   else
     Context.raise ~msg:value Conversion_syntax context
 
-let of_int value =
-  let sign = if value >= 0 then Sign.Pos else Neg in
-  Finite { sign; coef = string_of_int (abs value); exp = 0 }
+let of_int value = Finite {
+  sign = Sign.of_int value;
+  coef = string_of_int (abs value);
+  exp = 0;
+}
+
+let of_bigint value = Finite {
+  sign = value |> Z.sign |> Sign.of_int;
+  coef = value |> Z.abs |> Z.to_string;
+  exp = 0;
+}
 
 let of_float ?(context=Context.default ()) value =
   let float_str = string_of_float value in
