@@ -1,0 +1,3 @@
+(test
+  (name decimal_test)
+  (libraries alcotest angstrom decimal))

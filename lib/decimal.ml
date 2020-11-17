@@ -18,6 +18,20 @@ module Signal = struct
   let get = Array.get
   let set = Array.set
 
+  let to_string = function
+    | 0 -> "clamped"
+    | 1 -> "invalid_operation"
+    | 2 -> "conversion_syntax"
+    | 3 -> "div_by_zero"
+    | 4 -> "div_impossible"
+    | 5 -> "div_undefined"
+    | 6 -> "inexact"
+    | 7 -> "rounded"
+    | 8 -> "subnormal"
+    | 9 -> "overflow"
+    | 10 -> "underflow"
+    | i -> failwith ("Signal.to_string: invalid signal: " ^ string_of_int i)
+
   let pp f array  =
     let open Format in
     pp_print_string f "{ clamped = ";
@@ -52,6 +66,8 @@ module Sign = struct
     | "-" -> Neg
     | "" | "+" -> Pos
     | s -> invalid_arg ("Sign.of_string: invalid sign: " ^ s)
+
+  let of_int value = if value >= 0 then Pos else Neg
 
   let to_int = function Neg -> -1 | Pos -> 1
   let to_string = function Pos -> "" | Neg -> "-"
@@ -154,8 +170,6 @@ module Context = struct
     }
 
   let default = () |> make |> ref
-  let set_default = (:=) default
-  let default () = !default
 
   let prec t = t.prec
   let round t = t.round
@@ -168,6 +182,36 @@ module Context = struct
 
   let e_tiny { prec; e_min; _ } = e_min - prec + 1
   let e_top { prec; e_max; _ } = e_max - prec + 1
+
+  let string_of_round = function
+    | Down -> "down"
+    | Up -> "up"
+    | Half_up -> "half_up"
+    | Half_down -> "half_down"
+    | Half_even -> "half_even"
+    | Ceiling -> "ceiling"
+    | Floor -> "floor"
+    | Zero_five_up -> "zero_five_up"
+
+  let pp f t =
+    let open Format in
+    pp_print_string f "{ prec = ";
+    pp_print_int f t.prec;
+    pp_print_string f "; round = ";
+    pp_print_string f (string_of_round t.round);
+    pp_print_string f "; e_max = ";
+    pp_print_int f t.e_max;
+    pp_print_string f "; e_min = ";
+    pp_print_int f t.e_min;
+    pp_print_string f "; capitals = ";
+    pp_print_bool f t.capitals;
+    pp_print_string f "; clamp = ";
+    pp_print_bool f t.clamp;
+    pp_print_string f "; traps = ";
+    Signal.pp f t.traps;
+    pp_print_string f "; flags = ";
+    Signal.pp f t.flags;
+    pp_print_string f " }\n"
 
   let id_of_flag : type a. a flag -> Signal.id =
     let open Signal in
@@ -308,7 +352,7 @@ let get_coef value = match Str.matched_group 2 value with
   | "" -> "0"
   | coef -> coef
 
-let of_string ?(context=Context.default ()) value =
+let of_string ?(context= !Context.default) value =
   let value = value
     |> String.trim
     |> Str.global_replace (Str.regexp_string "_") ""
@@ -342,11 +386,19 @@ let of_string ?(context=Context.default ()) value =
   else
     Context.raise ~msg:value Conversion_syntax context
 
-let of_int value =
-  let sign = if value >= 0 then Sign.Pos else Neg in
-  Finite { sign; coef = string_of_int (abs value); exp = 0 }
+let of_int value = Finite {
+  sign = Sign.of_int value;
+  coef = string_of_int (abs value);
+  exp = 0;
+}
 
-let of_float ?(context=Context.default ()) value =
+let of_bigint value = Finite {
+  sign = value |> Z.sign |> Sign.of_int;
+  coef = value |> Z.abs |> Z.to_string;
+  exp = 0;
+}
+
+let of_float ?(context= !Context.default) value =
   let float_str = string_of_float value in
   if value = Float.nan then
     nan
@@ -369,7 +421,7 @@ let of_float ?(context=Context.default ()) value =
 
 let to_bool = function Finite { coef = "0"; _ } -> false | _ -> true
 
-let to_string ?(eng=false) ?(context=Context.default ()) = function
+let to_string ?(eng=false) ?(context= !Context.default) = function
   | Inf sign ->
     Sign.to_string sign ^ "Inf"
   | NaN ->
@@ -692,7 +744,7 @@ let normalize ?(prec=0) finite1 finite2 =
   if finite1.exp < finite2.exp then normalize prec finite2 finite1
   else normalize prec finite1 finite2
 
-let negate ?(context=Context.default ()) = function
+let negate ?(context= !Context.default) = function
   | NaN as t -> t
   | Inf sign -> Inf (Sign.negate sign)
   | Finite { coef = "0"; _ } as t when context.round <> Floor ->
@@ -700,13 +752,13 @@ let negate ?(context=Context.default ()) = function
   | Finite finite ->
     fix context (Finite { finite with sign = Sign.negate finite.sign })
 
-let posate ?(context=Context.default ()) = function
+let posate ?(context= !Context.default) = function
   | NaN as t -> t
   | Inf _ -> infinity
   | Finite { coef = "0"; _ } as t when context.round <> Floor -> abs t
   | t -> fix context t
 
-let add ?(context=Context.default ()) t1 t2 = match t1, t2 with
+let add ?(context= !Context.default) t1 t2 = match t1, t2 with
   | NaN, _
   | _, NaN ->
     nan
@@ -793,9 +845,9 @@ let add ?(context=Context.default ()) t1 t2 = match t1, t2 with
         | _ ->
           finalize finite1 finite2 { result with sign = Pos }
 
-let sub ?(context=Context.default ()) t1 t2 = add ~context t1 (negate t2)
+let sub ?(context= !Context.default) t1 t2 = add ~context t1 (negate t2)
 
-let mul ?(context=Context.default ()) t1 t2 = match t1, t2 with
+let mul ?(context= !Context.default) t1 t2 = match t1, t2 with
   | NaN, _
   | _, NaN ->
     NaN
@@ -881,7 +933,7 @@ let divide context t1 t2 =
     else
       div_impossible ()
 
-let div_rem ?(context=Context.default ()) t1 t2 =
+let div_rem ?(context= !Context.default) t1 t2 =
   let sign = Sign.xor (sign_t t1) (sign_t t2) in
   match t1, t2 with
   | NaN, _
@@ -901,7 +953,7 @@ let div_rem ?(context=Context.default ()) t1 t2 =
     let quotient, remainder = divide context t1 t2 in
     quotient, fix context remainder
 
-let rem ?(context=Context.default ()) t1 t2 = match t1, t2 with
+let rem ?(context= !Context.default) t1 t2 = match t1, t2 with
   | NaN, _ -> NaN
   | _, NaN -> NaN
   | Inf _, _ -> Context.raise ~msg:"∞ mod x" Invalid_operation context
@@ -913,7 +965,7 @@ let rem ?(context=Context.default ()) t1 t2 = match t1, t2 with
     let _, remainder = divide context t1 t2 in
     fix context remainder
 
-let div ?(context=Context.default ()) t1 t2 =
+let div ?(context= !Context.default) t1 t2 =
   let sign () = Sign.xor (sign_t t1) (sign_t t2) in
   let finalize sign coef exp = fix context (Finite { sign; coef; exp }) in
   match t1, t2 with
@@ -968,7 +1020,7 @@ let div ?(context=Context.default ()) t1 t2 =
     in
     finalize (sign ()) (Z.to_string coef) !exp
 
-let fma ?(context=Context.default ()) ~first_mul ~then_add t =
+let fma ?(context= !Context.default) ~first_mul ~then_add t =
   let product = match t, first_mul with
     | NaN, _
     | _, NaN ->

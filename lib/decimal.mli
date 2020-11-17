@@ -47,7 +47,11 @@ module Signal : sig
   (** [set array id bool] sets the state of the signal [id] in [array] to
       [bool]. *)
 
+  val to_string : id -> string
+  (** [to_string id] is [id]'s name. *)
+
   val pp : Format.formatter -> array -> unit
+  (** [pp f array] pretty-prints the signal array. *)
 
   val clamped : id
   (** Exponent of a 0 changed to fit bounds.
@@ -207,12 +211,8 @@ module Context : sig
   type t
   (** Controls, precision, rounding, traps (exception handling), etc. settings. *)
 
-  val default : unit -> t
-  (** [default ()] is the current thread-local context. May change between
-      calls. *)
-
-  val set_default : t -> unit
-  (** [set_default t] sets [t] as the current thread-local context. *)
+  val default : t ref
+  (** [default] is a reference to the default thread-local context. *)
 
   val make :
     ?prec:int ->
@@ -276,6 +276,9 @@ module Context : sig
 
   val e_top : t -> int
   (** [e_top t] is the maximum exponent of context [t]. *)
+
+  val pp : Format.formatter -> t -> unit
+  (** [pp f t] pretty-prints the context [t]. *)
 end
 (** Settings that control precision, rounding mode, exceptional behaviour, etc. *)
 
@@ -288,6 +291,7 @@ val nan : t
 val one : t
 val zero : t
 
+val of_bigint : Z.t -> t
 val of_int : int -> t
 val of_string : ?context:Context.t -> string -> t
 
