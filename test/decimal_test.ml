@@ -38,15 +38,19 @@ let eval_test_case {
   operation;
   operands;
   expected_result;
-  expected_exceptions;
+  expected_signals;
 } =
   let context = C.copy ~orig () in
   print_endline test_id;
   begin match operation, operands with
-  | Add, [t1; t2] -> assert (D.add ~context t1 t2 = expected_result)
+  | Add, [t1; t2] ->
+      let t1 = D.of_string t1 in
+      let t2 = D.of_string t2 in
+      let expected_result = D.of_string expected_result in
+      assert (D.add ~context t1 t2 = expected_result)
   | _ -> ()
   end;
-  List.iter (flag_was_set context) expected_exceptions
+  List.iter (flag_was_set context) expected_signals
 
 let eval_test_line = function
   | P.Directive test_directive -> eval_test_directive test_directive

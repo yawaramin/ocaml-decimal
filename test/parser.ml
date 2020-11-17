@@ -1,6 +1,4 @@
-module D = Decimal
-
-type exception_name =
+type signal =
   | Clamped
   | Conversion_syntax
   | Division_by_zero
@@ -91,16 +89,14 @@ type operation =
 type test_case =
   { test_id : string
   ; operation : operation
-  ; operands : D.t list
-  ; expected_result : D.t
-  ; expected_exceptions : exception_name list
+  ; operands : string list
+  ; expected_result : string
+  ; expected_signals : signal list
   }
 
 type test_line = Directive of test_directive | Test_case of test_case
 
 open Angstrom
-
-let ( let& ) = ( >>= )
 
 let ws = skip_many (char ' ')
 
@@ -128,30 +124,25 @@ let comment = string "--" *> skip_while (( <> ) '\n')
 
 let eol = ws *> opt comment *> opt (char '\r') *> char '\n'
 
-let decimal_bigint =
-  let+ sign = sign
-  and+ digits = take_while1 is_digit in
-  D.of_string (Char.escaped sign ^ digits)
+let decimal_unquoted =
+  take_while1 (function
+    | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '+' | '-' | '.' | ',' | '#' ->
+        true
+    | _ ->
+        false)
+  >>= function "-" -> fail "invalid decimal: -" | n -> return n
 
-let decimal_string =
-  let+ _ = char '\''
-  and+ sign = sign
-  and+ whole_part = take_while1 is_digit
-  and+ _ = char '.'
-  and+ frac_part = take_while1 is_digit
-  and+ _ = char '\'' in
-  D.of_string (Char.escaped sign ^ whole_part ^ "." ^ frac_part)
+let between p inner = p *> inner <* p
 
-let decimal_float =
-  let+ sign = sign
-  and+ whole_part = take_while1 is_digit
-  and+ _ = char '.'
-  and+ frac_part = take_while1 is_digit in
-  D.of_string (Char.escaped sign ^ whole_part ^ "." ^ frac_part)
+let decimal_quoted c =
+  many (skip_with (string (String.make 2 c)) c <|> not_char c)
+  |> between (char c)
+  >>| fun l -> String.concat "" (List.map (String.make 1) l)
 
-let decimal = decimal_bigint <|> decimal_string <|> decimal_float
+let decimal =
+  decimal_quoted '\'' <|> decimal_quoted '"' <|> decimal_unquoted
 
-let exception_name =
+let signal =
   choice
     [ skip_with (string_ci "Clamped") Clamped
     ; skip_with (string_ci "Conversion_syntax") Conversion_syntax
@@ -167,8 +158,6 @@ let exception_name =
     ; skip_with (string_ci "Rounded") Rounded
     ; skip_with (string_ci "Subnormal") Subnormal
     ; skip_with (string_ci "Underflow") Underflow ]
-
-let exceptions = sep_by ws1 exception_name
 
 let operation_of_string = function
   | "abs" ->
@@ -312,13 +301,15 @@ let operation =
       fail ("invalid operation: " ^ op)
 
 let test_case =
-  lift4
-    (fun test_id operation operands expected_result expected_exceptions ->
-      { test_id; operation; operands; expected_result; expected_exceptions })
-    ident (ws1 *> operation)
-    (ws1 *> sep_by ws1 decimal)
-    (ws1 *> string "->" *> ws1 *> decimal)
-  <*> option [] (ws1 *> exceptions)
+  let+ test_id = ident
+  and+ _ = ws1
+  and+ operation = operation
+  and+ _ = ws1
+  and+ operands = sep_by ws1 decimal
+  and+ _ = ws1 *> string "->" *> ws1
+  and+ expected_result = decimal
+  and+ expected_signals = option [] (ws1 *> sep_by ws1 signal) in
+  { test_id; operation; operands; expected_result; expected_signals }
 
 let rounding =
   let open Decimal.Context in
