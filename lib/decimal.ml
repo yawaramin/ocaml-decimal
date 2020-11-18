@@ -484,6 +484,10 @@ let zero_pad_right n string =
   if n < 1 then string
   else string ^ String.make n '0'
 
+let zero_pad_left n string =
+  if n < 1 then string
+  else String.make n '0' ^ string
+
 let compare t1 t2 = match t1, t2 with
   (* Deal with specials *)
   | Inf Pos, Inf Pos
@@ -712,17 +716,15 @@ let normalize prec tmp other =
   let other_len = String.length other.coef in
   let exp = tmp.exp + min ~-1 (tmp_len - prec - 2) in
   let other =
-    if other_len + other.exp - 1 < exp then
-      { other with coef = "1"; exp }
-    else
-      other
+    if other_len + other.exp - 1 < exp then { other with coef = "1"; exp }
+    else other
   in
-  let coef = tmp.coef
-    |> Z.of_string
-    |> Z.mul (Z.pow z10 (tmp.exp - other.exp))
-    |> Z.to_string
-  in
+  let coef = zero_pad_right (tmp.exp - other.exp) tmp.coef in
   let tmp = { tmp with coef; exp = other.exp } in
+  let coef =
+    zero_pad_left (String.length coef - String.length other.coef) other.coef
+  in
+  let other = { other with coef } in
   tmp, other
 
 (** [normalize ?prec finite1 finite2] is [(op1, op2)] normalized to have the
@@ -766,7 +768,6 @@ let add ?(context= !Context.default) t1 t2 = match t1, t2 with
     (* If the answer is 0, the sign should be negative *)
     let negativezero = context.round = Floor && finite1.sign <> finite2.sign in
 
-    (* Can compare the strings here because they've been normalized *)
     match finite1.coef, finite2.coef with
     (* One or both are zeroes *)
     | "0", "0" ->
@@ -783,7 +784,7 @@ let add ?(context= !Context.default) t1 t2 = match t1, t2 with
 
     (* Neither is zero *)
     | _ ->
-      let finalize finite1 finite2 result =
+      let return finite1 finite2 result =
         let int1 = Z.of_string finite1.coef in
         let int2 = Z.of_string finite2.coef in
         let coef = match finite2.sign with
@@ -799,8 +800,8 @@ let add ?(context= !Context.default) t1 t2 = match t1, t2 with
       match finite1.sign, finite2.sign with
         | Pos, Neg
         | Neg, Pos ->
-          (* Equal and opposite *)
           if finite1.coef = finite2.coef then
+            (* Equal and opposite *)
             fix context (Finite {
               sign = if negativezero then Neg else Pos;
               coef = "0";
@@ -823,14 +824,14 @@ let add ?(context= !Context.default) t1 t2 = match t1, t2 with
                 finite2
                 (* So we know the sign, and finite1 > 0 *)
             in
-            finalize finite1 finite2 result
+            return finite1 finite2 result
         | Neg, _ ->
           let result = { result with sign = Neg } in
           let finite1 = { finite1 with sign = Pos } in
           let finite2 = { finite2 with sign = Pos } in
-          finalize finite1 finite2 result
+          return finite1 finite2 result
         | _ ->
-          finalize finite1 finite2 { result with sign = Pos }
+          return finite1 finite2 { result with sign = Pos }
 
 let sub ?(context= !Context.default) t1 t2 = add ~context t1 (negate t2)
 
