@@ -345,32 +345,30 @@ let of_string ?(context= !Context.default) value =
   match parts_of value with
   | exception Invalid_argument msg ->
     Context.raise ~msg Conversion_syntax context
+  | "nan", _, _ -> nan
+  | "inf", _, _ -> infinity
+  | "-inf", _, _ -> neg_infinity
   | whole, frac, exp ->
-    begin match whole, frac, exp with
-    | "nan", _, _ -> nan
-    | "inf", _, _ -> infinity
-    | "-inf", _, _ -> neg_infinity
-    | _ ->
-      let exp = match strip_leading_zeros exp with
-        | "" -> 0
-        | e -> int_of_string e
-      in
-      let exp = exp - String.length frac in
-      let sign, whole =
-        match String.split_on_char '-' whole, String.split_on_char '+' whole with
-        | [""; whole], _ -> Sign.Neg, whole
-        | _, [""; whole]
-        | [whole], _ -> Pos, whole
-        | _ -> failwith "Decimal.of_string: unreachable branch"
-      in
-      let whole, frac =
-        match strip_leading_zeros whole, strip_leading_zeros frac with
-        | "", "" -> "0", ""
-        | "", f -> "", f
-        | w, _ -> w, frac
-      in
-      Finite { sign; coef = whole ^ frac; exp }
-    end
+    let exp = match strip_leading_zeros exp with
+      | "" -> 0
+      | e -> int_of_string e
+    in
+    let exp = exp - String.length frac in
+    let sign, whole =
+      match String.split_on_char '-' whole, String.split_on_char '+' whole with
+      | [""; whole], _ -> Sign.Neg, whole
+      | _, [""; whole]
+      | [whole], _ -> Pos, whole
+      | _ -> failwith "Decimal.of_string: unreachable branch"
+    in
+    let whole, frac =
+      match strip_leading_zeros whole, strip_leading_zeros frac with
+      | "", "" -> "0", ""
+      | "", f -> "", f
+      (* if whole part is not zero, don't mess with the frac part *)
+      | w, _ -> w, frac
+    in
+    Finite { sign; coef = whole ^ frac; exp }
 
 let of_int value = Finite {
   sign = Sign.of_int value;
