@@ -27,19 +27,19 @@ let flag_was_set context flag =
 
 let eval_test_directive = function
   | P.Precision prec ->
-    Printf.printf "precision=%d\n" prec;
+    Printf.printf "\nprecision=%d" prec;
     C.default := C.copy ~orig:!C.default ~prec ()
   | Rounding round ->
-    Printf.printf "round=%s\n" (C.string_of_round round);
+    Printf.printf "\nround=%s" (C.string_of_round round);
     C.default := C.copy ~orig:!C.default ~round ()
   | Max_exponent e_max ->
-    Printf.printf "e_max=%d\n" e_max;
+    Printf.printf "\ne_max=%d" e_max;
     C.default := C.copy ~orig:!C.default ~e_max ()
   | Min_exponent e_min ->
-    Printf.printf "e_min=%d\n" e_min;
+    Printf.printf "\ne_min=%d" e_min;
     C.default := C.copy ~orig:!C.default ~e_min ()
   | Clamp clamp ->
-    Printf.printf "clamp=%b\n" clamp;
+    Printf.printf "\nclamp=%b" clamp;
     C.default := C.copy ~orig:!C.default ~clamp ()
   | _ -> ()
 

@@ -299,6 +299,7 @@ module Of_string = struct
   let sign_str = {|\([-+]?\)|}
   let digits_str = {|\([0-9]+\)|}
   let dot_str = {|\.|}
+  let e_str = "[Ee]"
   let leading_zeros = Str.regexp "^0+"
 
   (* Different kinds of numbers that could be matched *)
@@ -318,14 +319,23 @@ module Of_string = struct
     digits_str ^ (* 3 *)
     end_str)
 
-  let exp = Str.regexp (
+  let whole_exp = Str.regexp (
+    start_str ^
+    sign_str ^ (* 1 *)
+    digits_str ^ (* 2 *)
+    e_str ^
+    sign_str ^ (* 3 *)
+    digits_str ^ (* 4 *)
+    end_str)
+
+  let frac_exp = Str.regexp (
     start_str ^
     sign_str ^ (* 1 *)
     digits_str ^ (* 2 *)
     "?" ^
     dot_str ^
     digits_str ^ (* 3 *)
-    "[Ee]" ^
+    e_str ^
     sign_str ^ (* 4 *)
     digits_str ^ (* 5 *)
     end_str)
@@ -373,7 +383,14 @@ let of_string ?(context= !Context.default) value =
       coef = get_coef value ^ fracpart;
       exp = -String.length fracpart;
     }
-  else if Str.string_match Of_string.exp value 0 then
+  else if Str.string_match Of_string.whole_exp value 0 then
+    Finite {
+      sign = get_sign value;
+      coef = get_coef value;
+      exp =
+        int_of_string (Str.matched_group 3 value ^ Str.matched_group 4 value);
+    }
+  else if Str.string_match Of_string.frac_exp value 0 then
     let fracpart = get_fracpart value in
     let exp = int_of_string (
       Str.matched_group 4 value ^ Str.matched_group 5 value)
