@@ -319,7 +319,14 @@ let parts_of value =
     | [whole; ""] ->
       whole, "", "0"
     | [whole; frac] ->
-      whole, frac, "0"
+      if String.contains frac 'e' then begin
+        match String.split_on_char 'e' frac with
+        | [""; exp] -> whole, "", exp
+        | [frac; exp] -> whole, frac, exp
+        | _ -> invalid_arg value
+      end
+      else
+        whole, frac, "0"
     | _ -> invalid_arg value
   end else if String.contains value 'e' then begin
     match String.split_on_char 'e' value with
@@ -436,7 +443,8 @@ let to_string ?(eng=false) ?(context= !Context.default) = function
         ""
       else
         let e = if context.Context.capitals then "E" else "e" in
-        e ^ string_of_int value
+        let s = if value < 0 then "" else "+" in
+        e ^ s ^ string_of_int value
     in
     Sign.to_string sign ^ intpart ^ fracpart ^ exp
 
