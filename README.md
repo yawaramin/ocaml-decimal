@@ -13,6 +13,9 @@ for the sake of simplicity, as it is a derived work of the Python `decimal` modu
 
 ## Examples
 
+    $ opam install decimal # if trying out
+    # (* if trying out: *)
+      #require "decimal";;
     # (* for convenience *)
       module D = Decimal
       let i = D.of_int
@@ -25,3 +28,24 @@ for the sake of simplicity, as it is a derived work of the Python `decimal` modu
     # (* default precision is 32 *)
       D.(i 1 / i 3);;
     - : D.t = 0.33333333333333333333333333333333
+
+## Dev
+
+Build:
+
+    dune build
+
+Try in REPL:
+
+    dune utop
+
+## Tests
+
+The test runner source is in `test/decimal_test.ml`. It parses and runs the test
+cases in `test/data/`. I am adding test case data files from the
+[Python snapshot](https://github.com/python/cpython/tree/23831a7a90956e38b7d70304bb6afe30d37936de/Lib/test/decimaltestdata)
+as I go.
+
+Run current tests:
+
+    dune test
