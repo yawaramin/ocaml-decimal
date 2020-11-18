@@ -62,11 +62,6 @@ end
 module Sign = struct
   type t = Pos | Neg
 
-  let of_string = function
-    | "-" -> Neg
-    | "" | "+" -> Pos
-    | s -> invalid_arg ("Sign.of_string: invalid sign: " ^ s)
-
   let of_int value = if value >= 0 then Pos else Neg
 
   let to_int = function Neg -> -1 | Pos -> 1
@@ -293,115 +288,76 @@ module Context = struct
     if Signal.get t.traps id then raise (exn ?msg flag) else handle flag t
 end
 
-module Of_string = struct
-  let start_str = "^"
-  let end_str = "$"
-  let sign_str = {|\([-+]?\)|}
-  let digits_str = {|\([0-9]+\)|}
-  let dot_str = {|\.|}
-  let e_str = "[Ee]"
-  let leading_zeros = Str.regexp "^0+"
-
-  (* Different kinds of numbers that could be matched *)
-
-  let whole = Str.regexp (
-    start_str ^
-    sign_str ^ (* 1 *)
-    digits_str ^ (* 2 *)
-    {|\.?$|})
-
-  let frac = Str.regexp (
-    start_str ^
-    sign_str ^ (* 1 *)
-    digits_str ^ (* 2 *)
-    "?" ^
-    dot_str ^
-    digits_str ^ (* 3 *)
-    end_str)
-
-  let whole_exp = Str.regexp (
-    start_str ^
-    sign_str ^ (* 1 *)
-    digits_str ^ (* 2 *)
-    e_str ^
-    sign_str ^ (* 3 *)
-    digits_str ^ (* 4 *)
-    end_str)
-
-  let frac_exp = Str.regexp (
-    start_str ^
-    sign_str ^ (* 1 *)
-    digits_str ^ (* 2 *)
-    "?" ^
-    dot_str ^
-    digits_str ^ (* 3 *)
-    e_str ^
-    sign_str ^ (* 4 *)
-    digits_str ^ (* 5 *)
-    end_str)
-
-  let inf = Str.regexp (
-    start_str ^
-    sign_str ^ (* 1 *)
-    {|[Ii]nf\(inity\)?$|})
-
-  let nan = Str.regexp "^[Nn]a[Nn]$"
-end
-
 let infinity = Inf Pos
 let neg_infinity = Inf Neg
 let nan = NaN
 let one = Finite { sign = Pos; coef = "1"; exp = 0 }
 let zero = Finite { sign = Pos; coef = "0"; exp = 0 }
 
-let get_sign value = Sign.of_string (Str.matched_group 1 value)
-let get_fracpart = Str.matched_group 3
-
-let get_coef value = match Str.matched_group 2 value with
-  | exception Not_found
-  | "" -> ""
-  | coef -> coef
-
-let of_string ?(context= !Context.default) value =
+let parts_of value =
   let value = value
     |> String.trim
+    |> String.lowercase_ascii
     |> Str.global_replace (Str.regexp_string "_") ""
-    |> Str.replace_first Of_string.leading_zeros ""
   in
-  if value = "" || value = "0" then
-    zero
-  else if Str.string_match Of_string.inf value 0 then
-    Inf (get_sign value)
-  else if Str.string_match Of_string.nan value 0 then
-    nan
-  else if Str.string_match Of_string.whole value 0 then
-    Finite { exp = 0; coef = get_coef value; sign = get_sign value }
-  else if Str.string_match Of_string.frac value 0 then
-    let fracpart = get_fracpart value in
-    Finite {
-      sign = get_sign value;
-      coef = get_coef value ^ fracpart;
-      exp = -String.length fracpart;
-    }
-  else if Str.string_match Of_string.whole_exp value 0 then
-    Finite {
-      sign = get_sign value;
-      coef = get_coef value;
-      exp =
-        int_of_string (Str.matched_group 3 value ^ Str.matched_group 4 value);
-    }
-  else if Str.string_match Of_string.frac_exp value 0 then
-    let fracpart = get_fracpart value in
-    let exp = int_of_string (
-      Str.matched_group 4 value ^ Str.matched_group 5 value)
-    in
-    Finite {
-      sign = get_sign value;
-      coef = get_coef value ^ fracpart;
-      exp = exp - String.length fracpart;
-    }
+  if value = "inf" || value = "infinity" || value = "+inf" || value = "+infinity" then
+    "inf", "", ""
+  else if value = "-inf" || value = "-infinity" then
+    "-inf", "", ""
+  else if value = "nan" then
+    "nan", "", ""
+  else if String.contains value '.' then begin
+    match String.split_on_char '.' value with
+    | [""; frac] ->
+      if String.contains frac 'e' then begin
+        match String.split_on_char 'e' value with
+        | [frac; ""] -> "", frac, "0"
+        | [frac; exp] -> "", frac, exp
+        | _ -> invalid_arg value
+      end else
+        "", frac, "0"
+    | [whole; ""] ->
+      whole, "", "0"
+    | [whole; frac] ->
+      whole, frac, "0"
+    | _ -> invalid_arg value
+  end else if String.contains value 'e' then begin
+    match String.split_on_char 'e' value with
+    | [""; _]
+    | [_; ""] -> invalid_arg value
+    | [whole; exp] -> whole, "", exp
+    | _ -> invalid_arg value
+  end
   else
-    Context.raise ~msg:value Conversion_syntax context
+    value, "", "0"
+
+let leading_zeros = Str.regexp "^0+"
+let strip_leading_zeros = Str.replace_first leading_zeros ""
+
+let of_string ?(context= !Context.default) value =
+  match parts_of value with
+  | exception Invalid_argument msg ->
+    Context.raise ~msg Conversion_syntax context
+  | whole, frac, exp ->
+    let whole = strip_leading_zeros whole in
+    let exp = match strip_leading_zeros exp with
+      | "" -> 0
+      | e -> int_of_string e
+    in
+    begin match whole, frac, exp with
+    | "nan", _, _ -> nan
+    | "inf", _, _ -> infinity
+    | "-inf", _, _ -> neg_infinity
+    | _ ->
+      let sign, whole =
+        match String.split_on_char '-' whole, String.split_on_char '+' whole with
+        | [""; whole], _ -> Sign.Neg, whole
+        | _, [""; whole]
+        | [whole], _ -> Pos, whole
+        | _ -> failwith "Decimal.of_string: unreachable branch"
+      in
+      Finite { sign; coef = whole ^ frac; exp = exp - String.length frac }
+    end
 
 let of_int value = Finite {
   sign = Sign.of_int value;
