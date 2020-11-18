@@ -208,6 +208,8 @@ module Context : sig
   | Zero_five_up
   (** Round zero or five away from 0. *)
 
+  val string_of_round : round -> string
+
   type t
   (** Controls, precision, rounding, traps (exception handling), etc. settings. *)
 

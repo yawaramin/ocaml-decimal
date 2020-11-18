@@ -29,30 +29,41 @@ let eval_test_directive = function
   | P.Precision prec ->
     Printf.printf "precision=%d\n" prec;
     C.default := C.copy ~orig:!C.default ~prec ()
-  | Rounding round -> C.default := C.copy ~orig:!C.default ~round ()
-  | Max_exponent e_max -> C.default := C.copy ~orig:!C.default ~e_max ()
-  | Min_exponent e_min -> C.default := C.copy ~orig:!C.default ~e_min ()
-  | Clamp clamp -> C.default := C.copy ~orig:!C.default ~clamp ()
+  | Rounding round ->
+    Printf.printf "round=%s\n" (C.string_of_round round);
+    C.default := C.copy ~orig:!C.default ~round ()
+  | Max_exponent e_max ->
+    Printf.printf "e_max=%d\n" e_max;
+    C.default := C.copy ~orig:!C.default ~e_max ()
+  | Min_exponent e_min ->
+    Printf.printf "e_min=%d\n" e_min;
+    C.default := C.copy ~orig:!C.default ~e_min ()
+  | Clamp clamp ->
+    Printf.printf "clamp=%b\n" clamp;
+    C.default := C.copy ~orig:!C.default ~clamp ()
   | _ -> ()
+
+let assert_eq ~context ~expected actual =
+  try assert D.(of_string expected = actual) with
+  | Assert_failure _ as e ->
+    begin
+      Format.printf "\nFAIL: %a\ncontext: %a\n" D.pp actual C.pp context;
+      raise e
+    end
 
 let eval_test_case {
   P.test_id;
   operation;
   operands;
-  expected_result;
+  expected_result = expected;
   expected_signals;
 } =
   let context = C.copy ~orig:(!C.default) () in
   Printf.printf "\n%s: " test_id;
   begin match operation, operands with
   | Add, [t1; t2] ->
-    Printf.printf "%s + %s -> %s" t1 t2 expected_result;
-    let actual_result = D.(add ~context (of_string t1) (of_string t2)) in
-    begin try assert D.(of_string expected_result = actual_result) with
-    | Assert_failure _ as e ->
-      Format.printf "\nFAIL: %a\ncontext: %a\n" D.pp actual_result C.pp context;
-      raise e
-    end
+    Printf.printf "%s + %s -> %s" t1 t2 expected;
+    assert_eq ~context ~expected D.(add ~context (of_string t1) (of_string t2))
   | _ -> ()
   end;
   List.iter (flag_was_set context) expected_signals
