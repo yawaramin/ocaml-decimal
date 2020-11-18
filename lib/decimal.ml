@@ -349,7 +349,7 @@ let get_fracpart = Str.matched_group 3
 
 let get_coef value = match Str.matched_group 2 value with
   | exception Not_found
-  | "" -> "0"
+  | "" -> ""
   | coef -> coef
 
 let of_string ?(context= !Context.default) value =
