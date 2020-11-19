@@ -151,4 +151,50 @@ let dlog10 c e p =
     else
       Z.zero, div_nearest (Z.of_int f) (Z.pow z10 ~-p)
   in
-  div_nearest Z.(log_tenpower + log_d) (Z.of_int 100)
+  div_nearest Z.(log_tenpower + log_d) z100
+
+(** [dlog c e p] is an integer approximation of [10**p * log (c * 10 * e)],
+    with an absolute error of at most 1. Assumes that [c * 10 * e] is not
+    exactly 1. *)
+let dlog c e p =
+  (* Increase precision by 2. The precision increase is compensated for at the
+     end with a division by 100. *)
+  let p = p + 2 in
+  (* Rewrite [c * 10**e] as [d * 10**f] with either f >= 0 and 1 <= d <= 10, or
+     f <= 0 and 0.1 <= d <= 1. Then we can compute [10**p * log (c * 10 * e)] as
+     [10**p * log d + 10**p * f * log 10]. *)
+  let l = c |> Z.to_string |> String.length in
+  let f =
+    let e_plus_l = e + l in
+    e_plus_l - if e_plus_l >= 1 then 1 else 0
+  in
+  (* compute approximation to [10**p * log d], with error < 27 *)
+  let log_d =
+    if p > 0 then
+      let k = e + p - f in
+      let c =
+        if k >= 0 then Z.(c * pow z10 k)
+        else div_nearest c (Z.pow z10 ~-k) (* error of <= 0.5 in c *)
+      in
+      (* ilog magnifies existing error in [c] by a factor of at most 10 *)
+      ilog c (Z.pow z10 p)
+    else
+      (* [p <= 0]: just approximate the whole thing by 0; error < 2.31 *)
+      Z.zero
+  in
+  let extra = (f |> abs |> string_of_int |> String.length) - 1 in
+  (* compute approximation to [f * 10**p*log 10], with error < 11. *)
+  let f_log_ten =
+    if f <> 0 then
+      let p_plus_extra = p + extra in
+      if p_plus_extra >= 0 then
+        (* error in [f * log10_digits (p + extra) < |f| * 1 = |f| *]
+           after division, [error < |f| / 10**extra + 0.5 < 10 + 0.5 < 11 *)
+        div_nearest Z.(of_int f * log10_digits p_plus_extra) (Z.pow z10 extra)
+      else
+        Z.zero
+    else
+      Z.zero
+  in
+  (* error in sum < 11 + 27 = 38; error after division < 0.38 + 0.5 < 1 *)
+  div_nearest Z.(f_log_ten + log_d) z100
