@@ -51,7 +51,7 @@ let eval_test_directive = function
   | _ -> ()
 
 let assert_eq ~context ~expected actual =
-  try assert D.(of_string expected = actual) with
+  try assert D.(of_string ~context expected = actual) with
   | Assert_failure _ as e ->
     begin
       Format.printf "\nFAIL: %a\ncontext: %a\n" D.pp actual C.pp context;
@@ -65,15 +65,21 @@ let eval_test_case {
   expected_result = expected;
   expected_signals;
 } =
-  let context = C.copy ~orig:(!C.default) () in
+  let context = C.copy ~orig:!C.default () in
   Printf.printf "\n%s: " test_id;
   begin match operation, operands with
   | Add, [t1; t2] ->
     Printf.printf "%s + %s = %s" t1 t2 expected;
-    assert_eq ~context ~expected D.(add ~context (of_string t1) (of_string t2))
+    assert_eq
+      ~context
+      ~expected
+      D.(add ~context (of_string ~context t1) (of_string ~context t2))
   | Subtract, [t1; t2] ->
     Printf.printf "%s - %s = %s" t1 t2 expected;
-    assert_eq ~context ~expected D.(sub ~context (of_string t1) (of_string t2))
+    assert_eq
+      ~context
+      ~expected
+      D.(sub ~context (of_string ~context t1) (of_string ~context t2))
   | _ -> ()
   end;
   List.iter (flag_was_set context) expected_signals
@@ -102,4 +108,5 @@ let eval_file filename =
 let () =
   S.set C.(traps !default) (S.invalid_operation) false;
   S.set C.(traps !default) (S.overflow) false;
+  S.set C.(traps !default) (S.conversion_syntax) false;
   eval_file "./data/add.decTest"

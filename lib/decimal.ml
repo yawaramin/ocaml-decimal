@@ -839,7 +839,8 @@ let add ?(context= !Context.default) t1 t2 = match t1, t2 with
         | _ ->
           return finite1 finite2 { result with sign = Pos }
 
-let sub ?(context= !Context.default) t1 t2 = add ~context t1 (negate t2)
+let sub ?(context= !Context.default) t1 t2 =
+  add ~context t1 (negate ~context t2)
 
 let mul ?(context= !Context.default) t1 t2 = match t1, t2 with
   | NaN, _
