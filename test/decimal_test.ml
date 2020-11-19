@@ -89,4 +89,7 @@ let eval_file filename =
   close_in ch;
   eval_str str
 
-let () = eval_file "./data/add.decTest"
+let () =
+  S.set C.(traps !default) (S.invalid_operation) false;
+  S.set C.(traps !default) (S.invalid_operation) false;
+  eval_file "./data/add.decTest"

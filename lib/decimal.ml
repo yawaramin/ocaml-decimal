@@ -294,49 +294,56 @@ let nan = NaN
 let one = Finite { sign = Pos; coef = "1"; exp = 0 }
 let zero = Finite { sign = Pos; coef = "0"; exp = 0 }
 
+let nan_r = Str.regexp "^[+-]?[qs]?nan.*$"
+let inf_r = Str.regexp {|^[+]?inf\(inity\)?$|}
+let neg_inf_r = Str.regexp {|^-inf\(inity\)?$|}
+let finite_r = Str.regexp {|^[+-]?[0-9]*\.?[0-9]*\(e[+-]?[0-9]+\)?$|}
+
 let parts_of value =
   let value = value
     |> String.trim
     |> String.lowercase_ascii
     |> Str.global_replace (Str.regexp_string "_") ""
   in
-  if value = "inf" || value = "infinity" || value = "+inf" || value = "+infinity" then
-    "inf", "", ""
-  else if value = "-inf" || value = "-infinity" then
-    "-inf", "", ""
-  else if value = "nan" then
+  if Str.string_match nan_r value 0 then
     "nan", "", ""
-  else if String.contains value '.' then begin
-    match String.split_on_char '.' value with
-    | [""; frac] ->
-      if String.contains frac 'e' then begin
-        match String.split_on_char 'e' value with
-        | [frac; ""] -> "", frac, "0"
-        | [frac; exp] -> "", frac, exp
-        | _ -> invalid_arg value
-      end else
-        "", frac, "0"
-    | [whole; ""] ->
-      whole, "", "0"
-    | [whole; frac] ->
-      if String.contains frac 'e' then begin
-        match String.split_on_char 'e' frac with
-        | [""; exp] -> whole, "", exp
-        | [frac; exp] -> whole, frac, exp
-        | _ -> invalid_arg value
-      end
-      else
-        whole, frac, "0"
-    | _ -> invalid_arg value
-  end else if String.contains value 'e' then begin
-    match String.split_on_char 'e' value with
-    | [""; _]
-    | [_; ""] -> invalid_arg value
-    | [whole; exp] -> whole, "", exp
-    | _ -> invalid_arg value
-  end
+  else if Str.string_match inf_r value 0 then
+    "inf", "", ""
+  else if Str.string_match neg_inf_r value 0 then
+    "-inf", "", ""
+  else if Str.string_match finite_r value 0 then
+    if String.contains value '.' then begin
+      match String.split_on_char '.' value with
+      | [""; frac] ->
+        if String.contains frac 'e' then begin
+          match String.split_on_char 'e' value with
+          | [frac; ""] -> "", frac, "0"
+          | [frac; exp] -> "", frac, exp
+          | _ -> invalid_arg value
+        end else
+          "", frac, "0"
+      | [whole; ""] ->
+        whole, "", "0"
+      | [whole; frac] ->
+        if String.contains frac 'e' then begin
+          match String.split_on_char 'e' frac with
+          | [""; exp] -> whole, "", exp
+          | [frac; exp] -> whole, frac, exp
+          | _ -> invalid_arg value
+        end
+        else
+          whole, frac, "0"
+      | _ -> invalid_arg value
+    end else if String.contains value 'e' then begin
+      match String.split_on_char 'e' value with
+      | [""; _]
+      | [_; ""] -> invalid_arg value
+      | [whole; exp] -> whole, "", exp
+      | _ -> invalid_arg value
+    end else
+      value, "", "0"
   else
-    value, "", "0"
+    invalid_arg value
 
 let leading_zeros = Str.regexp "^0+"
 let strip_leading_zeros = Str.replace_first leading_zeros ""
@@ -732,15 +739,17 @@ let normalize ?(prec=0) finite1 finite2 =
   else normalize prec finite1 finite2
 
 let negate ?(context= !Context.default) = function
-  | NaN as t -> t
-  | Inf sign -> Inf (Sign.negate sign)
+  | NaN ->
+    Context.raise Invalid_operation context
+  | Inf sign ->
+    Inf (Sign.negate sign)
   | Finite { coef = "0"; _ } as t when context.round <> Floor ->
     t |> abs |> fix context
   | Finite finite ->
     fix context (Finite { finite with sign = Sign.negate finite.sign })
 
 let posate ?(context= !Context.default) = function
-  | NaN as t -> t
+  | NaN -> Context.raise Invalid_operation context
   | Inf _ -> infinity
   | Finite { coef = "0"; _ } as t when context.round <> Floor -> abs t
   | t -> fix context t
@@ -748,7 +757,7 @@ let posate ?(context= !Context.default) = function
 let add ?(context= !Context.default) t1 t2 = match t1, t2 with
   | NaN, _
   | _, NaN ->
-    nan
+    Context.raise Invalid_operation context
   | Inf Pos, Inf Pos ->
     infinity
   | Inf Neg, Inf Neg ->
@@ -836,7 +845,7 @@ let sub ?(context= !Context.default) t1 t2 = add ~context t1 (negate t2)
 let mul ?(context= !Context.default) t1 t2 = match t1, t2 with
   | NaN, _
   | _, NaN ->
-    NaN
+    Context.raise Invalid_operation context
   | Inf _, Finite { coef = "0"; _ } ->
     Context.raise ~msg:"±∞ × 0" Invalid_operation context
   | Finite { coef = "0"; _ }, Inf _ ->
@@ -923,7 +932,9 @@ let div_rem ?(context= !Context.default) t1 t2 =
   let sign = Sign.xor (sign_t t1) (sign_t t2) in
   match t1, t2 with
   | NaN, _
-  | _, NaN -> NaN, NaN
+  | _, NaN ->
+    let ans = Context.raise Invalid_operation context in
+    ans, ans
   | Inf _, Inf _ ->
     let ans = Context.raise ~msg:"div_rem ∞ ∞" Invalid_operation context in
     ans, ans
@@ -940,8 +951,9 @@ let div_rem ?(context= !Context.default) t1 t2 =
     quotient, fix context remainder
 
 let rem ?(context= !Context.default) t1 t2 = match t1, t2 with
-  | NaN, _ -> NaN
-  | _, NaN -> NaN
+  | NaN, _
+  | _, NaN ->
+    Context.raise Invalid_operation context
   | Inf _, _ -> Context.raise ~msg:"∞ mod x" Invalid_operation context
   | Finite { coef = "0"; _ }, Finite { coef = "0"; _ } ->
     Context.raise ~msg:"0 mod 0" Div_undefined context
@@ -955,8 +967,9 @@ let div ?(context= !Context.default) t1 t2 =
   let sign () = Sign.xor (sign_t t1) (sign_t t2) in
   let finalize sign coef exp = fix context (Finite { sign; coef; exp }) in
   match t1, t2 with
-  | NaN, _ -> NaN
-  | _, NaN -> NaN
+  | NaN, _
+  | _, NaN ->
+    Context.raise Invalid_operation context
   | Inf _, Inf _ ->
     Context.raise ~msg:"±∞ / ±∞" Invalid_operation context
   | Inf _, _ ->
