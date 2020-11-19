@@ -694,16 +694,15 @@ let fix context = function
           in
           (* raise the appropriate signals, taking care to respect the
              precedence described in the specification *)
-          if changed <> 0 && is_subnormal then Context.raise Underflow context;
-          if is_subnormal then Context.raise Subnormal context;
-          if changed <> 0 then Context.raise Inexact context;
+          if changed <> 0 && is_subnormal then (Context.raise Underflow context);
+          if is_subnormal then (Context.raise Subnormal context);
+          if changed <> 0 then (Context.raise Inexact context);
           Context.raise Rounded context;
-          if not (to_bool ans) then
-            (* raise Clamped on underflow to 0 *)
-            Context.raise Clamped context;
+          (* raise Clamped on underflow to 0 *)
+          if not (to_bool ans) then (Context.raise Clamped context);
           ans
         else begin
-          if is_subnormal then Context.raise Subnormal context;
+          if is_subnormal then (Context.raise Subnormal context);
           (* fold down if clamp and has too few digits *)
           if context.clamp && exp > e_top then begin
             Context.raise Clamped context;
