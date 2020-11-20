@@ -50,11 +50,19 @@ let eval_test_directive = function
     C.default := C.copy ~orig:!C.default ~clamp ()
   | _ -> ()
 
-let assert_eq ~context ~expected actual =
+let assert_decimal ~context ~expected actual =
   try assert D.(of_string ~context expected = actual) with
   | Assert_failure _ as e ->
     begin
       Format.printf "\nFAIL: %a\ncontext: %a\n" D.pp actual C.pp context;
+      raise e
+    end
+
+let assert_int ~context ~expected actual =
+  try assert (int_of_string expected = actual) with
+  | Assert_failure _ as e ->
+    begin
+      Format.printf "\nFAIL: %d\ncontext: %a\n" actual C.pp context;
       raise e
     end
 
@@ -70,16 +78,22 @@ let eval_test_case {
   begin match operation, operands with
   | Abs, [t] ->
     Printf.printf "abs %s = %s" t expected;
-    assert_eq ~context ~expected D.(abs ~context (of_string ~context t))
+    assert_decimal ~context ~expected D.(abs ~context (of_string ~context t))
+  | Compare, [t1; t2] ->
+    Printf.printf "compare %s %s = %s" t1 t2 expected;
+    assert_int
+      ~context
+      ~expected
+      D.(compare (of_string ~context t1) (of_string ~context t2))
   | Add, [t1; t2] ->
     Printf.printf "%s + %s = %s" t1 t2 expected;
-    assert_eq
+    assert_decimal
       ~context
       ~expected
       D.(add ~context (of_string ~context t1) (of_string ~context t2))
   | Subtract, [t1; t2] ->
     Printf.printf "%s - %s = %s" t1 t2 expected;
-    assert_eq
+    assert_decimal
       ~context
       ~expected
       D.(sub ~context (of_string ~context t1) (of_string ~context t2))
@@ -115,5 +129,6 @@ let () =
   List.iter eval_file [
     "data/abs.decTest";
     "data/add.decTest";
+    "data/compare.decTest";
     "data/subtract.decTest";
   ]
