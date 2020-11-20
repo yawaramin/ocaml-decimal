@@ -49,3 +49,10 @@ as I go.
 Run current tests:
 
     dune test
+
+Note that, some of the tests don't make sense for the OCaml port and have thus
+been deleted. If you ever need to update to new versions of the test files, you
+can apply the changes as patches after re-dowloading the relevant `*.decTest`
+files:
+
+    git show 07074859567e936b8d170aba5ef58889a4d9d467 | git apply
