@@ -109,4 +109,5 @@ let () =
   S.set C.(traps !default) (S.invalid_operation) false;
   S.set C.(traps !default) (S.overflow) false;
   S.set C.(traps !default) (S.conversion_syntax) false;
-  eval_file "./data/add.decTest"
+  eval_file "data/add.decTest";
+  eval_file "data/subtract.decTest"

@@ -313,7 +313,12 @@ val to_tuple : t -> int * string * int
 
 val abs : t -> t
 val adjusted : t -> int
+
 val negate : ?context:Context.t -> t -> t
+(** [negate ?context t] is t negated, and rounded under [context] if necessary. *)
+
+val copy_negate : t -> t
+(** [copy_negate t] is [t] negated without rounding. *)
 
 val posate : ?context:Context.t -> t -> t
 (** Opposite of [negate]; a no-op. *)

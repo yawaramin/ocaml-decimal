@@ -492,55 +492,6 @@ let zero_pad_right n string =
 let zero_pad_left n string =
   if n < 1 then string
   else String.make n '0' ^ string
-
-let compare t1 t2 = match t1, t2 with
-  (* Deal with specials *)
-  | Inf Pos, Inf Pos
-  | Inf Neg, Inf Neg
-  | NaN, NaN ->
-    0
-  | NaN, _
-  | _, NaN ->
-    invalid_arg "compare: cannot compare NaN with decimal"
-  | Inf Neg, _
-  | _, Inf Pos ->
-    -1
-  | _, Inf Neg
-  | Inf Pos, _ ->
-    1
-
-  (* Deal with zeros *)
-  | Finite { coef = "0"; _ }, Finite { coef = "0"; _ } -> 0
-  | Finite { coef = "0"; _ }, Finite { sign = s; _ } -> -Sign.to_int s
-  | Finite { sign = s; _ }, Finite { coef = "0"; _ } -> Sign.to_int s
-
-  (* Simple cases of different signs *)
-  | Finite { sign = Neg as s1; _ }, Finite { sign = Pos as s2; _ }
-  | Finite { sign = Pos as s1; _ }, Finite { sign = Neg as s2; _ } ->
-    compare (Sign.to_int s1) (Sign.to_int s2)
-
-  (* Same sign *)
-  | Finite { coef = coef1; exp = exp1; sign },
-    Finite { coef = coef2; exp = exp2; _ } ->
-    begin match compare (adjust exp1 coef1) (adjust exp2 coef2) with
-    | 0 ->
-      let padded1 = zero_pad_right (exp1 - exp2) coef1 in
-      let padded2 = zero_pad_right (exp2 - exp1) coef2 in
-      begin match compare padded1 padded2 with
-      | 0 -> 0
-      | -1 -> -Sign.to_int sign
-      | 1 -> Sign.to_int sign
-      | _ -> invalid_arg "compare: internal error"
-      end
-    | 1 -> Sign.to_int sign
-    | -1 -> -Sign.to_int sign
-    | _ -> invalid_arg "compare: internal error"
-    end
-
-let abs = function
-  | Finite { sign = Neg; coef; exp } -> Finite { sign = Pos; coef; exp }
-  | t -> t
-
 module Round = struct
   (* For each rounding function below:
 
@@ -737,21 +688,13 @@ let normalize ?(prec=0) finite1 finite2 =
   if finite1.exp < finite2.exp then normalize prec finite2 finite1
   else normalize prec finite1 finite2
 
-let negate ?(context= !Context.default) = function
+let copy_negate = function
   | NaN ->
-    Context.raise Invalid_operation context
+    nan
   | Inf sign ->
     Inf (Sign.negate sign)
-  | Finite { coef = "0"; _ } as t when context.round <> Floor ->
-    t |> abs |> fix context
   | Finite finite ->
-    fix context (Finite { finite with sign = Sign.negate finite.sign })
-
-let posate ?(context= !Context.default) = function
-  | NaN -> Context.raise Invalid_operation context
-  | Inf _ -> infinity
-  | Finite { coef = "0"; _ } as t when context.round <> Floor -> abs t
-  | t -> fix context t
+    Finite { finite with sign = Sign.negate finite.sign }
 
 let add ?(context= !Context.default) t1 t2 = match t1, t2 with
   | NaN, _
@@ -790,57 +733,32 @@ let add ?(context= !Context.default) t1 t2 = match t1, t2 with
 
     (* Neither is zero *)
     | _ ->
-      let return finite1 finite2 result =
+      let finite1, finite2 = normalize ~prec:context.prec finite1 finite2 in
+      match finite1.sign, finite2.sign with
+      (* Equal and opposite *)
+      | Pos, Neg
+      | Neg, Pos when finite1.coef = finite2.coef ->
+        fix context (Finite {
+          sign = if negativezero then Neg else Pos;
+          coef = "0";
+          exp;
+        })
+
+      | _ ->
         let int1 = Z.of_string finite1.coef in
         let int2 = Z.of_string finite2.coef in
-        let coef = match finite2.sign with
-          | Pos -> Z.add int1 int2
-          | Neg -> Z.sub int1 int2
+        let sign, int = match finite1.sign, finite2.sign, Z.compare int1 int2 with
+          | Pos, Pos, _ -> Sign.Pos, Z.add int1 int2
+          | Neg, Neg, _ -> Neg, Z.add int1 int2
+          | Pos, Neg, 1 -> Pos, Z.sub int1 int2
+          | Pos, Neg, -1 -> Neg, Z.sub int2 int1
+          | Neg, Pos, 1 -> Neg, Z.sub int1 int2
+          | Neg, Pos, -1 -> Pos, Z.sub int2 int1
+          | _ -> failwith "Decimal.add: unreachable"
         in
-        fix
-          context
-          (Finite { result with coef = Z.to_string coef; exp = finite1.exp })
-      in
-      let finite1, finite2 = normalize ~prec:context.prec finite1 finite2 in
-      let result = { sign = Pos; coef = "0"; exp = 1 } in
-      match finite1.sign, finite2.sign with
-        | Pos, Neg
-        | Neg, Pos ->
-          if finite1.coef = finite2.coef then
-            (* Equal and opposite *)
-            fix context (Finite {
-              sign = if negativezero then Neg else Pos;
-              coef = "0";
-              exp;
-            })
-          else
-            let finite1, finite2 =
-              if finite1.coef < finite2.coef then finite2, finite1
-              (* OK, now abs(finite1) > abs(finite2) *)
-              else finite1, finite2
-            in
-            let result, finite1, finite2 =
-              if finite1.sign = Neg then
-                { result with sign = Neg },
-                { finite1 with sign = finite2.sign },
-                { finite2 with sign = finite1.sign }
-              else
-                { result with sign = Pos },
-                finite1,
-                finite2
-                (* So we know the sign, and finite1 > 0 *)
-            in
-            return finite1 finite2 result
-        | Neg, _ ->
-          let result = { result with sign = Neg } in
-          let finite1 = { finite1 with sign = Pos } in
-          let finite2 = { finite2 with sign = Pos } in
-          return finite1 finite2 result
-        | _ ->
-          return finite1 finite2 { result with sign = Pos }
+        fix context (Finite { sign; coef = Z.to_string int; exp = finite1.exp })
 
-let sub ?(context= !Context.default) t1 t2 =
-  add ~context t1 (negate ~context t2)
+let sub ?(context= !Context.default) t1 t2 = add ~context t1 (copy_negate t2)
 
 let mul ?(context= !Context.default) t1 t2 = match t1, t2 with
   | NaN, _
@@ -1040,6 +958,70 @@ let fma ?(context= !Context.default) ~first_mul ~then_add t =
       }
   in
   add ~context product then_add
+
+let compare t1 t2 = match t1, t2 with
+  (* Deal with specials *)
+  | Inf Pos, Inf Pos
+  | Inf Neg, Inf Neg
+  | NaN, NaN ->
+    0
+  | NaN, _
+  | _, NaN ->
+    invalid_arg "compare: cannot compare NaN with decimal"
+  | Inf Neg, _
+  | _, Inf Pos ->
+    -1
+  | _, Inf Neg
+  | Inf Pos, _ ->
+    1
+
+  (* Deal with zeros *)
+  | Finite { coef = "0"; _ }, Finite { coef = "0"; _ } -> 0
+  | Finite { coef = "0"; _ }, Finite { sign = s; _ } -> -Sign.to_int s
+  | Finite { sign = s; _ }, Finite { coef = "0"; _ } -> Sign.to_int s
+
+  (* Simple cases of different signs *)
+  | Finite { sign = Neg as s1; _ }, Finite { sign = Pos as s2; _ }
+  | Finite { sign = Pos as s1; _ }, Finite { sign = Neg as s2; _ } ->
+    compare (Sign.to_int s1) (Sign.to_int s2)
+
+  (* Same sign *)
+  | Finite { coef = coef1; exp = exp1; sign },
+    Finite { coef = coef2; exp = exp2; _ } ->
+    begin match compare (adjust exp1 coef1) (adjust exp2 coef2) with
+    | 0 ->
+      let padded1 = zero_pad_right (exp1 - exp2) coef1 in
+      let padded2 = zero_pad_right (exp2 - exp1) coef2 in
+      begin match compare padded1 padded2 with
+      | 0 -> 0
+      | -1 -> -Sign.to_int sign
+      | 1 -> Sign.to_int sign
+      | _ -> invalid_arg "compare: internal error"
+      end
+    | 1 -> Sign.to_int sign
+    | -1 -> -Sign.to_int sign
+    | _ -> invalid_arg "compare: internal error"
+    end
+
+let abs = function
+  | Finite { sign = Neg; coef; exp } -> Finite { sign = Pos; coef; exp }
+  | t -> t
+
+let negate ?(context= !Context.default) = function
+  | NaN ->
+    Context.raise Invalid_operation context
+  | Inf sign ->
+    Inf (Sign.negate sign)
+  | Finite { coef = "0"; _ } as t when context.round <> Floor ->
+    t |> abs |> fix context
+  | Finite finite ->
+    fix context (Finite { finite with sign = Sign.negate finite.sign })
+
+let posate ?(context= !Context.default) = function
+  | NaN -> Context.raise Invalid_operation context
+  | Inf _ -> infinity
+  | Finite { coef = "0"; _ } as t when context.round <> Floor -> abs t
+  | t -> fix context t
 
 let ( ~- ) t = negate t
 let ( ~+ ) t = posate t
