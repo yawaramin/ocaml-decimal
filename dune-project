@@ -1,7 +1,7 @@
 (lang dune 2.7)
 
 (name decimal)
-(version v0.1.0)
+(version v0.1.1)
 (generate_opam_files true)
 (license PSF-2.0)
 (authors "Yawar Amin <yawar.amin@gmail.com>")
@@ -16,5 +16,5 @@ the Python decimal module.")
   (documentation "https://yawaramin.github.io/ocaml-decimal/api")
   (depends
     (angstrom (and (>= 0.15.0) (< 1.0.0) :with-test))
-    (ocaml (>= 4.06.0))
+    (ocaml (>= 4.08.0))
     (zarith (and (>= 1.10) (< 2.0.0)))))

@@ -103,6 +103,16 @@ let eval_test_case {
       ~context
       ~expected
       D.(div ~context (of_string ~context t1) (of_string ~context t2))
+  | Fma, [t; first_mul; then_add] ->
+    Printf.printf "%s × %s + %s = %s" t first_mul then_add expected;
+    assert_decimal
+      ~context
+      ~expected
+      D.(fma
+        ~context
+        ~first_mul:(of_string ~context first_mul)
+        ~then_add:(of_string ~context then_add)
+        (of_string ~context t))
   | Multiply, [t1; t2] ->
     Printf.printf "%s × %s = %s" t1 t2 expected;
     assert_decimal
@@ -147,10 +157,12 @@ let eval_file filename =
   eval_str str
 
 let () =
-  S.set C.(traps !default) (S.conversion_syntax) false;
-  S.set C.(traps !default) (S.div_by_zero) false;
-  S.set C.(traps !default) (S.invalid_operation) false;
-  S.set C.(traps !default) (S.overflow) false;
+  let traps = C.(traps !default) in
+  S.set traps S.conversion_syntax false;
+  S.set traps S.div_by_zero false;
+  S.set traps S.invalid_operation false;
+  S.set traps S.overflow false;
+
   List.iter eval_file [
     "data/abs.decTest";
     "data/add.decTest";

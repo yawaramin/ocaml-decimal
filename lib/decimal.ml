@@ -492,6 +492,7 @@ let zero_pad_right n string =
 let zero_pad_left n string =
   if n < 1 then string
   else String.make n '0' ^ string
+
 module Round = struct
   (* For each rounding function below:
 
