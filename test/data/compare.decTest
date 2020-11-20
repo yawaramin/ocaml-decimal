@@ -629,70 +629,6 @@ comx813 compare  1    -Inf   ->  1
 comx814 compare  1000 -Inf   ->  1
 comx815 compare  Inf  -Inf   ->  1
 
-comx821 compare  NaN -Inf    ->  NaN
-comx822 compare  NaN -1000   ->  NaN
-comx823 compare  NaN -1      ->  NaN
-comx824 compare  NaN -0      ->  NaN
-comx825 compare  NaN  0      ->  NaN
-comx826 compare  NaN  1      ->  NaN
-comx827 compare  NaN  1000   ->  NaN
-comx828 compare  NaN  Inf    ->  NaN
-comx829 compare  NaN  NaN    ->  NaN
-comx830 compare -Inf  NaN    ->  NaN
-comx831 compare -1000 NaN    ->  NaN
-comx832 compare -1    NaN    ->  NaN
-comx833 compare -0    NaN    ->  NaN
-comx834 compare  0    NaN    ->  NaN
-comx835 compare  1    NaN    ->  NaN
-comx836 compare  1000 NaN    ->  NaN
-comx837 compare  Inf  NaN    ->  NaN
-comx838 compare -NaN -NaN    -> -NaN
-comx839 compare +NaN -NaN    ->  NaN
-comx840 compare -NaN +NaN    -> -NaN
-
-comx841 compare  sNaN -Inf   ->  NaN  Invalid_operation
-comx842 compare  sNaN -1000  ->  NaN  Invalid_operation
-comx843 compare  sNaN -1     ->  NaN  Invalid_operation
-comx844 compare  sNaN -0     ->  NaN  Invalid_operation
-comx845 compare  sNaN  0     ->  NaN  Invalid_operation
-comx846 compare  sNaN  1     ->  NaN  Invalid_operation
-comx847 compare  sNaN  1000  ->  NaN  Invalid_operation
-comx848 compare  sNaN  NaN   ->  NaN  Invalid_operation
-comx849 compare  sNaN sNaN   ->  NaN  Invalid_operation
-comx850 compare  NaN  sNaN   ->  NaN  Invalid_operation
-comx851 compare -Inf  sNaN   ->  NaN  Invalid_operation
-comx852 compare -1000 sNaN   ->  NaN  Invalid_operation
-comx853 compare -1    sNaN   ->  NaN  Invalid_operation
-comx854 compare -0    sNaN   ->  NaN  Invalid_operation
-comx855 compare  0    sNaN   ->  NaN  Invalid_operation
-comx856 compare  1    sNaN   ->  NaN  Invalid_operation
-comx857 compare  1000 sNaN   ->  NaN  Invalid_operation
-comx858 compare  Inf  sNaN   ->  NaN  Invalid_operation
-comx859 compare  NaN  sNaN   ->  NaN  Invalid_operation
-
--- propagating NaNs
-comx860 compare  NaN9 -Inf   ->  NaN9
-comx861 compare  NaN8  999   ->  NaN8
-comx862 compare  NaN77 Inf   ->  NaN77
-comx863 compare -NaN67 NaN5  -> -NaN67
-comx864 compare -Inf  -NaN4  -> -NaN4
-comx865 compare -999  -NaN33 -> -NaN33
-comx866 compare  Inf   NaN2  ->  NaN2
-comx867 compare -NaN41 -NaN42 -> -NaN41
-comx868 compare +NaN41 -NaN42 ->  NaN41
-comx869 compare -NaN41 +NaN42 -> -NaN41
-comx870 compare +NaN41 +NaN42 ->  NaN41
-
-comx871 compare -sNaN99 -Inf    -> -NaN99 Invalid_operation
-comx872 compare  sNaN98 -11     ->  NaN98 Invalid_operation
-comx873 compare  sNaN97  NaN    ->  NaN97 Invalid_operation
-comx874 compare  sNaN16 sNaN94  ->  NaN16 Invalid_operation
-comx875 compare  NaN85  sNaN83  ->  NaN83 Invalid_operation
-comx876 compare -Inf    sNaN92  ->  NaN92 Invalid_operation
-comx877 compare  088    sNaN81  ->  NaN81 Invalid_operation
-comx878 compare  Inf    sNaN90  ->  NaN90 Invalid_operation
-comx879 compare  NaN   -sNaN89  -> -NaN89 Invalid_operation
-
 -- overflow and underflow tests .. subnormal results now allowed
 maxExponent: 999999999
 minexponent: -999999999
@@ -752,7 +688,3 @@ comx938 compare   0       0E-383  ->  0
 comx939 compare   0      -0E-383  ->  0
 comx940 compare  -0       0E-383  ->  0
 comx941 compare  -0      -0E-383  ->  0
-
--- Null tests
-comx990 compare 10  # -> NaN Invalid_operation
-comx990 compare  # 10 -> NaN Invalid_operation
