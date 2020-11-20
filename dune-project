@@ -1,7 +1,7 @@
 (lang dune 2.7)
 
 (name decimal)
-(version v0.0.3)
+(version v0.1.0)
 (generate_opam_files true)
 (license PSF-2.0)
 (authors "Yawar Amin <yawar.amin@gmail.com>")
