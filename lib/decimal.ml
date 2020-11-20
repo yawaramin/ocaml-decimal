@@ -240,7 +240,7 @@ module Context = struct
     | Underflow ->
       Failure (fail_msg "underflow: " msg)
     | Invalid_operation ->
-      Failure (fail_msg "invalid operation: " msg)
+      Invalid_argument (fail_msg "invalid operation: " msg)
     | Conversion_syntax ->
       Invalid_argument (fail_msg "invalid decimal literal: " msg)
     | Div_impossible ->
@@ -1003,7 +1003,7 @@ let compare t1 t2 = match t1, t2 with
     | _ -> invalid_arg "compare: internal error"
     end
 
-let abs = function
+let copy_abs = function
   | Finite { sign = Neg; coef; exp } -> Finite { sign = Pos; coef; exp }
   | t -> t
 
@@ -1013,15 +1013,25 @@ let negate ?(context= !Context.default) = function
   | Inf sign ->
     Inf (Sign.negate sign)
   | Finite { coef = "0"; _ } as t when context.round <> Floor ->
-    t |> abs |> fix context
+    t |> copy_abs |> fix context
   | Finite finite ->
     fix context (Finite { finite with sign = Sign.negate finite.sign })
 
 let posate ?(context= !Context.default) = function
   | NaN -> Context.raise Invalid_operation context
   | Inf _ -> infinity
-  | Finite { coef = "0"; _ } as t when context.round <> Floor -> abs t
+  | Finite { coef = "0"; _ } as t when context.round <> Floor -> copy_abs t
   | t -> fix context t
+
+let abs ?(round=true) ?(context= !Context.default) t =
+  if not round then
+    copy_abs t
+  else
+    match t with
+    | NaN -> Context.raise Invalid_operation context
+    | Inf _ -> infinity
+    | Finite { sign = Neg; _ } -> negate ~context t
+    | _ -> posate ~context t
 
 let ( ~- ) t = negate t
 let ( ~+ ) t = posate t

@@ -68,6 +68,9 @@ let eval_test_case {
   let context = C.copy ~orig:!C.default () in
   Printf.printf "\n%s: " test_id;
   begin match operation, operands with
+  | Abs, [t] ->
+    Printf.printf "abs %s = %s" t expected;
+    assert_eq ~context ~expected D.(abs ~context (of_string ~context t))
   | Add, [t1; t2] ->
     Printf.printf "%s + %s = %s" t1 t2 expected;
     assert_eq
@@ -109,5 +112,8 @@ let () =
   S.set C.(traps !default) (S.invalid_operation) false;
   S.set C.(traps !default) (S.overflow) false;
   S.set C.(traps !default) (S.conversion_syntax) false;
-  eval_file "data/add.decTest";
-  eval_file "data/subtract.decTest"
+  List.iter eval_file [
+    "data/abs.decTest";
+    "data/add.decTest";
+    "data/subtract.decTest";
+  ]

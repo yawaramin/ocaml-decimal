@@ -311,7 +311,13 @@ val to_tuple : t -> int * string * int
 (** [to_tuple t] is a representation of the internals of [t] as a triple
     of [(sign, coefficient, exponent)] for debugging purposes. *)
 
-val abs : t -> t
+val abs : ?round:bool -> ?context:Context.t -> t -> t
+(** [abs ?round ?context t] is the absolute value of [t], rounded only if
+    [round] is [true]. *)
+
+val copy_abs : t -> t
+(** [copy_abs t] is the absolute value of [t] without rounding. *)
+
 val adjusted : t -> int
 
 val negate : ?context:Context.t -> t -> t
