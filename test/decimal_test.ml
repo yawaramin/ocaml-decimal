@@ -97,6 +97,24 @@ let eval_test_case {
   | Copy_negate, [t] ->
     Printf.printf "copy_negate %s = %s" t expected;
     assert_decimal ~context ~expected D.(copy_negate (of_string ~context t))
+  | Divide, [t1; t2] ->
+    Printf.printf "%s / %s = %s" t1 t2 expected;
+    assert_decimal
+      ~context
+      ~expected
+      D.(div ~context (of_string ~context t1) (of_string ~context t2))
+  | Multiply, [t1; t2] ->
+    Printf.printf "%s × %s = %s" t1 t2 expected;
+    assert_decimal
+      ~context
+      ~expected
+      D.(mul ~context (of_string ~context t1) (of_string ~context t2))
+  | Remainder, [t1; t2] ->
+    Printf.printf "%s mod %s = %s" t1 t2 expected;
+    assert_decimal
+      ~context
+      ~expected
+      D.(rem ~context (of_string ~context t1) (of_string ~context t2))
   | Subtract, [t1; t2] ->
     Printf.printf "%s - %s = %s" t1 t2 expected;
     assert_decimal
@@ -129,14 +147,18 @@ let eval_file filename =
   eval_str str
 
 let () =
+  S.set C.(traps !default) (S.conversion_syntax) false;
+  S.set C.(traps !default) (S.div_by_zero) false;
   S.set C.(traps !default) (S.invalid_operation) false;
   S.set C.(traps !default) (S.overflow) false;
-  S.set C.(traps !default) (S.conversion_syntax) false;
   List.iter eval_file [
     "data/abs.decTest";
     "data/add.decTest";
     "data/compare.decTest";
     "data/copyabs.decTest";
     "data/copynegate.decTest";
+    "data/divide.decTest";
+    "data/multiply.decTest";
+    "data/remainder.decTest";
     "data/subtract.decTest";
   ]
