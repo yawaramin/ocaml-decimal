@@ -91,6 +91,9 @@ let eval_test_case {
       ~context
       ~expected
       D.(add ~context (of_string ~context t1) (of_string ~context t2))
+  | Copy_abs, [t] ->
+    Printf.printf "copy_abs %s = %s" t expected;
+    assert_decimal ~context ~expected D.(copy_abs (of_string ~context t))
   | Subtract, [t1; t2] ->
     Printf.printf "%s - %s = %s" t1 t2 expected;
     assert_decimal
@@ -130,5 +133,6 @@ let () =
     "data/abs.decTest";
     "data/add.decTest";
     "data/compare.decTest";
+    "data/copyabs.decTest";
     "data/subtract.decTest";
   ]

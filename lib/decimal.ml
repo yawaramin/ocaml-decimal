@@ -1005,6 +1005,7 @@ let compare t1 t2 = match t1, t2 with
 
 let copy_abs = function
   | Finite { sign = Neg; coef; exp } -> Finite { sign = Pos; coef; exp }
+  | Inf _ -> infinity
   | t -> t
 
 let negate ?(context= !Context.default) = function
