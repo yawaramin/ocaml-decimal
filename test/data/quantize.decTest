@@ -825,31 +825,8 @@ maxExponent: 999999999
 minexponent: -999999999
 
 -- some extremes derived from Rescale testcases
-quax801 quantize   0   1e1000000000 -> NaN Invalid_operation
 quax802 quantize   0  1e-1000000000 -> 0E-1000000000
-quax803 quantize   0   1e2000000000 -> NaN Invalid_operation
-quax804 quantize   0  1e-2000000000 -> NaN Invalid_operation
-quax805 quantize   0   1e3000000000 -> NaN Invalid_operation
-quax806 quantize   0  1e-3000000000 -> NaN Invalid_operation
-quax807 quantize   0   1e4000000000 -> NaN Invalid_operation
-quax808 quantize   0  1e-4000000000 -> NaN Invalid_operation
-quax809 quantize   0   1e5000000000 -> NaN Invalid_operation
-quax810 quantize   0  1e-5000000000 -> NaN Invalid_operation
-quax811 quantize   0   1e6000000000 -> NaN Invalid_operation
-quax812 quantize   0  1e-6000000000 -> NaN Invalid_operation
-quax813 quantize   0   1e7000000000 -> NaN Invalid_operation
-quax814 quantize   0  1e-7000000000 -> NaN Invalid_operation
-quax815 quantize   0   1e8000000000 -> NaN Invalid_operation
-quax816 quantize   0  1e-8000000000 -> NaN Invalid_operation
-quax817 quantize   0   1e9000000000 -> NaN Invalid_operation
-quax818 quantize   0  1e-9000000000 -> NaN Invalid_operation
-quax819 quantize   0   1e9999999999 -> NaN Invalid_operation
-quax820 quantize   0  1e-9999999999 -> NaN Invalid_operation
-quax821 quantize   0   1e10000000000 -> NaN Invalid_operation
-quax822 quantize   0  1e-10000000000 -> NaN Invalid_operation
-
 quax843 quantize   0    1e999999999 -> 0E+999999999
-quax844 quantize   0   1e1000000000 -> NaN Invalid_operation
 quax845 quantize   0   1e-999999999 -> 0E-999999999
 quax846 quantize   0  1e-1000000000 -> 0E-1000000000
 quax847 quantize   0  1e-1000000001 -> 0E-1000000001
@@ -859,14 +836,6 @@ quax850 quantize   0  1e-1000000004 -> 0E-1000000004
 quax851 quantize   0  1e-1000000005 -> 0E-1000000005
 quax852 quantize   0  1e-1000000006 -> 0E-1000000006
 quax853 quantize   0  1e-1000000007 -> 0E-1000000007
-quax854 quantize   0  1e-1000000008 -> NaN Invalid_operation
-
-quax861 quantize   1  1e+2147483649 -> NaN Invalid_operation
-quax862 quantize   1  1e+2147483648 -> NaN Invalid_operation
-quax863 quantize   1  1e+2147483647 -> NaN Invalid_operation
-quax864 quantize   1  1e-2147483647 -> NaN Invalid_operation
-quax865 quantize   1  1e-2147483648 -> NaN Invalid_operation
-quax866 quantize   1  1e-2147483649 -> NaN Invalid_operation
 
 -- More from Fung Lee
 precision:   16
@@ -874,14 +843,6 @@ rounding:    half_up
 maxExponent: 384
 minExponent: -383
 quax1021 quantize    8.666666666666000E+384     1.000000000000000E+384  -> 8.666666666666000E+384
-quax1022 quantize 64#8.666666666666000E+384  64#1.000000000000000E+384  -> 8.666666666666000E+384
-quax1023 quantize 64#8.666666666666000E+384  128#1.000000000000000E+384 -> 8.666666666666000E+384
-quax1024 quantize 64#8.666666666666000E+384  64#1E+384                  -> 8.666666666666000E+384
-quax1025 quantize 64#8.666666666666000E+384  64#1E+384   -> 64#8.666666666666000E+384
-quax1026 quantize 64#8.666666666666000E+384 128#1E+384   -> 64#9E+384 Inexact Rounded Clamped
-quax1027 quantize 64#8.666666666666000E+323  64#1E+31    -> NaN Invalid_operation
-quax1028 quantize 64#8.666666666666000E+323 128#1E+31    -> NaN Invalid_operation
-quax1029 quantize 64#8.66666666E+3          128#1E+10    -> 64#0E10 Inexact Rounded
 quax1030 quantize    8.66666666E+3              1E+3     -> 9E+3 Inexact Rounded
 
 -- Int and uInt32 edge values for testing conversions
@@ -936,8 +897,6 @@ minExponent: -6143
 --                             1         2         3
 --                   1 234567890123456789012345678901234
 quax0a1 quantize     8.555555555555555555555555555555555E+6143  1E+6143      -> 9E+6143   Inexact Rounded
-quax0a2 quantize 128#8.555555555555555555555555555555555E+6143  128#1E+6143  -> 8.55555555555555555555555555555556E+6143   Rounded Inexact
-quax0a3 quantize 128#8.555555555555555555555555555555555E+6144  128#1E+6144  -> 8.555555555555555555555555555555555E+6144
 
 -- payload decapitate
 precision: 5
