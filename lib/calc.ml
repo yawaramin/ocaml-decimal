@@ -225,3 +225,43 @@ let iexp ?(l=8) x m =
     y := div_nearest Z.(y_val * (y_val + mshift)) mshift
   done;
   Z.(m + !y)
+
+(** [dexp c e p] is an approximation to [exp (c * 10**e)], with [p] decimal
+    places of precision.
+
+    Returns integers [d, f] such that:
+
+    - [10**(p - 1) <= d <= 10**p], and
+    - [(d - 1) * 10**f < exp (c * 10**e) < (d + 1) * 10**f]
+
+    In other words, [d * 10**f] is an approximation to [exp (c * 10**e)] with
+    [p] digits of precision, and with an error in [d] of at most [1]. This is
+    almost, but not quite, the same as the error being < 1ulp: when
+    [d = 10**(p - 1)] the error could be up to 10 ulp. *)
+let dexp c e p =
+  (* we'll call [iexp] with [m = 10**(p + 2)], giving [p + 3] digits of
+     precision *)
+  let p = p + 2 in
+
+  (* compute [log 10] with extra precision = adjusted exponent of [c * 10**e] *)
+  let extra = max 0 (e + String.length (Z.to_string c) - 1) in
+  let q = p + extra in
+
+  (* compute quotient [c * 10**e/(log 10) = c * 10**(e + q)/(log 10 * 10**q)],
+     rounding down *)
+  let shift = e + q in
+  let cshift =
+    if shift >= 0 then
+      Z.(c * pow z10 shift)
+    else
+      let shift = -shift in
+      Z.(c /< pow z10 shift)
+  in
+  let quot, rem = Z.(div_rem cshift (log10_digits q)) in
+
+  (* reduce remainder back to original precision *)
+  let rem = div_nearest rem (Z.pow z10 extra) in
+
+  (* error in result of [iexp < 120]; error after division < 0.62 *)
+  div_nearest (iexp rem (Z.pow z10 p)) (Z.of_int 1_000),
+  Z.(quot - of_int p + of_int 3)
