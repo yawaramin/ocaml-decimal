@@ -1023,20 +1023,19 @@ let compare t1 t2 = match t1, t2 with
 let equal t1 t2 = compare t1 t2 = 0
 
 let hash t =
-  let norm = match t with
+  let triple = match t with
     | NaN ->
-      ",nan,0"
+      Sign.Pos, "nan", 0
     | Inf sign ->
-      Sign.to_string sign ^ ",inf,0"
+      sign, "inf", 0
     | Finite { coef = "0"; _ } ->
-      ",0,0"
+      Pos, "0", 0
     | Finite { sign; coef; exp } ->
       let zero_stripped = Str.replace_first Calc.zeros "" coef in
       let num_stripped = String.length coef - String.length zero_stripped in
-      let exp = string_of_int (exp + num_stripped) in
-      Sign.to_string sign ^ "," ^ zero_stripped ^ "," ^ exp
+      sign, zero_stripped, exp + num_stripped
   in
-  Hashtbl.hash norm
+  Hashtbl.hash triple
 
 let quantize ?(context= !Context.default) ?(round=context.round) ~exp t =
   match exp, t with
