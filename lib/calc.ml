@@ -264,4 +264,29 @@ let dexp c e p =
 
   (* error in result of [iexp < 120]; error after division < 0.62 *)
   div_nearest (iexp rem (Z.pow z10 p)) (Z.of_int 1_000),
-  Z.(quot - of_int p + of_int 3)
+  Z.to_int quot - p + 3
+
+let dpower xc xe yc ye p =
+  let b = ye + (yc |> Z.abs |> Z.to_string |> String.length) in
+  let lxc = dlog xc xe (p + b + 1) in
+  let shift = ye - b in
+  let pc =
+    if shift >= 0 then
+      Z.(lxc * yc * pow z10 shift)
+    else
+      let shift = -shift in
+      div_nearest Z.(lxc * yc) (Z.pow z10 shift)
+  in
+  let coef, exp =
+    if Z.(equal pc zero) then
+      if ((xc |> Z.to_string |> String.length) + xe >= 1) = Z.(gt yc zero) then
+        let p_minus_1 = p - 1 in
+        Z.(pow z10 p_minus_1 + one), 1 - p
+      else
+        Z.(pow z10 p - one), -p
+    else
+      let coef, exp = dexp pc ~-(p + 1) (p + 1) in
+      let coef = div_nearest coef z10 in
+      coef, succ exp
+  in
+  coef, exp
