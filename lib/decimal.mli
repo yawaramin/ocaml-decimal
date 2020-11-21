@@ -302,6 +302,7 @@ val of_float : ?context:Context.t -> float -> t
     suffers from floating-point precision loss; the other constructors should be
     preferred. *)
 
+val to_bigint : t -> Z.t
 val to_bool : t -> bool
 val to_rational : t -> Q.t
 val to_string : ?eng:bool -> ?context:Context.t -> t -> string
@@ -329,11 +330,23 @@ val copy_negate : t -> t
 val posate : ?context:Context.t -> t -> t
 (** Opposite of [negate]; a no-op. *)
 
+val quantize : ?context:Context.t -> ?round:Context.round -> exp:t -> t -> t
+(** [quantize ?context ?round ~exp t] is [t] quantized so that its exponent is
+    the same as that of [exp]. *)
+
+val round : ?n:int -> t -> t
+(** [round ?n t] is [t] rounded to the nearest integer, or to a given precision.
+    If [n] is [None], round [t] to the nearest integer. If [t] is ∞ or [NaN]
+    then raises an exception. If [t] lies exactly halfway between two integers
+    then it is rounded to the even integer. *)
+
 val sign : t -> int
 (** [sign t] is [-1] if t is negative, and [1] otherwise. *)
 
 val compare : t -> t -> int
 (** [compare t1 t2] is -1 if [t1 < t2], 0 if [t1 = t2], 1 if [t1 > t2]. *)
+
+val equal : t -> t -> bool
 
 val min : t -> t -> t
 (** [min t1 t2] is the smaller of [t1] and [t2]. *)

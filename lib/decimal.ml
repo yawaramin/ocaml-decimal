@@ -461,11 +461,23 @@ let to_string ?(eng=false) ?(context= !Context.default) = function
 
 let pp f t = t |> to_string |> Format.pp_print_string f
 
+let z10 = Calc.z10
+
 let to_rational = function
   | Inf _ -> invalid_arg "to_rational: cannot handle ∞"
   | NaN -> invalid_arg "to_rational: cannot handle NaN"
   | Finite { coef = "0"; _ } -> Q.of_ints 0 1
   | t -> t |> to_string |> Q.of_string
+
+let to_bigint = function
+  | NaN ->
+    invalid_arg "to_bigint: cannot convert NaN to integer"
+  | Inf _ ->
+    invalid_arg "to_bigint: cannot convert ∞ to integer"
+  | Finite { sign; coef; exp } ->
+    let s = sign |> Sign.to_int |> Z.of_int in
+    if exp >= 0 then Z.(s * of_string coef * pow z10 exp)
+    else Z.(s * of_string (String.sub coef 0 exp))
 
 let to_tuple = function
   | Inf sign -> Sign.to_int sign, "Inf", 0
@@ -664,8 +676,6 @@ let fix context = function
           else
             t
         end
-
-let z10 = Calc.z10
 
 let normalize prec tmp other =
   let tmp_len = String.length tmp.coef in
@@ -1004,6 +1014,82 @@ let compare t1 t2 = match t1, t2 with
     | _ -> invalid_arg "compare: internal error"
     end
 
+let equal t1 t2 = compare t1 t2 = 0
+
+let quantize ?(context= !Context.default) ?(round=context.round) ~exp t =
+  match exp, t with
+  | NaN, _
+  | _, NaN ->
+    Context.raise Invalid_operation context
+
+  | Inf _, Inf _ ->
+    (* If both are Inf, it is OK *)
+    t
+  | Inf _, _
+  | _, Inf _ ->
+    Context.raise ~msg:"quantize: one ∞" Invalid_operation context
+  | Finite { exp; _ }, Finite ({ coef = "0"; _ } as finite) ->
+    fix context (Finite { finite with exp })
+  | Finite { exp = exp_exp; _ }, Finite { exp = t_exp; _ } ->
+    let between =
+      Context.e_tiny context <= exp_exp && exp_exp <= Context.e_max context
+    in
+    if not between then
+      Context.raise
+        ~msg:"quantize: target exponent out of bounds"
+        Invalid_operation
+        context
+    else
+      let t_adjusted = adjusted t in
+      if t_adjusted > Context.e_max context then
+        Context.raise
+          ~msg:"quantize: exponent of result too large for current context"
+          Invalid_operation
+          context
+      else if t_adjusted - exp_exp + 1 > Context.prec context then
+        Context.raise
+          ~msg:"quantize: result has too many digits for current context"
+          Invalid_operation
+          context
+      else
+        match rescale exp_exp round t with
+        | Finite finite as ans ->
+          let ans_adjusted = adjusted ans in
+          if ans_adjusted > Context.e_max context then
+            Context.raise
+              ~msg:"quantize: exponent of result too large for current context"
+              Invalid_operation
+              context
+          else if String.length finite.coef > Context.prec context then
+            Context.raise
+              ~msg:"quantize: result has too many digits for current context"
+              Invalid_operation
+              context
+          (* raise appropriate flags *)
+          else
+            let return () = fix context ans in
+            let check_exp () =
+              if finite.exp > t_exp then begin
+                if not (equal ans t) then (Context.raise Inexact context);
+                Context.raise Rounded context;
+                return ()
+              end else
+                return ()
+            in
+            if finite.coef <> "0" && ans_adjusted < Context.e_min context then begin
+              Context.raise Subnormal context;
+              check_exp ()
+            end else
+              check_exp ()
+        | _ ->
+          failwith "quantize: unreachable"
+
+let round ?n t = match n, t with
+  | Some n, _ -> quantize ~exp:(Finite { sign = Pos; coef = "1"; exp = ~-n }) t
+  | None, NaN -> invalid_arg "round: cannot round a NaN"
+  | None, Inf _ -> invalid_arg "round: cannot round an ∞"
+  | None, _ -> rescale 0 Half_even t
+
 let copy_abs = function
   | Finite { sign = Neg; coef; exp } -> Finite { sign = Pos; coef; exp }
   | Inf _ -> infinity
@@ -1041,7 +1127,7 @@ let ( < ) t1 t2 = compare t1 t2 = -1
 let ( > ) t1 t2 = compare t1 t2 = 1
 let ( <= ) t1 t2 = compare t1 t2 <= 0
 let ( >= ) t1 t2 = compare t1 t2 >= 0
-let ( = ) t1 t2 = compare t1 t2 = 0
+let ( = ) = equal
 let ( + ) t1 t2 = add t1 t2
 let ( - ) t1 t2 = sub t1 t2
 let ( * ) t1 t2 = mul t1 t2

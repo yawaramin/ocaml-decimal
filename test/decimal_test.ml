@@ -119,6 +119,12 @@ let eval_test_case {
       ~context
       ~expected
       D.(mul ~context (of_string ~context t1) (of_string ~context t2))
+  | Quantize, [t; exp] ->
+    Printf.printf "quantize ~exp:%s %s = %s" exp t expected;
+    assert_decimal
+      ~context
+      ~expected
+      D.(quantize ~context ~exp:(of_string ~context exp) (of_string ~context t))
   | Remainder, [t1; t2] ->
     Printf.printf "%s mod %s = %s" t1 t2 expected;
     assert_decimal
@@ -171,6 +177,7 @@ let () =
     "data/copynegate.decTest";
     "data/divide.decTest";
     "data/multiply.decTest";
+    "data/quantize.decTest";
     "data/remainder.decTest";
     "data/subtract.decTest";
   ]
