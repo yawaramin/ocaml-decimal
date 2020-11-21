@@ -266,9 +266,29 @@ let dexp c e p =
   div_nearest (iexp rem (Z.pow z10 p)) (Z.of_int 1_000),
   Z.to_int quot - p + 3
 
+(** [dpower xc xe yc ye p] is [x ** y], given integers [xc], [xe], [yc], and
+    [ye] representing decimals [x = xc * 10**xe] and [y = yc * 10**ye]. Returns
+    a pair of integers [c, e] such that:
+
+    - [10**(p - 1) <= c <= 10**p], and
+    - [(c - 1) * 10**e < x**y < (c + 1) * 10**e]
+
+    In other words, [c * 10**e] is an approximation to [x**y] with [p] digits of
+    precision, and with an error in [c] of at most [1]. This almost, but not
+    quite, the same as the error being < 1ulp: when [c = 10**(p - 1)] we can
+    only guarantee error < 10ulp.
+
+    We assume that: [x] is positive and not equal to [1], and [y] is nonzero. *)
 let dpower xc xe yc ye p =
+  (* Find [b] such that [10**(b - 1) <= abs y <= 10**b] *)
   let b = ye + (yc |> Z.abs |> Z.to_string |> String.length) in
+
+  (* [log x = lxc * 10**(-p - b - 1)], to [p + b + 1] places after the decimal
+     point *)
   let lxc = dlog xc xe (p + b + 1) in
+
+  (* compute product
+     [y * log x = yc * lxc * 10**(-p - b - 1 + ye) = pc * 10**(-p - 1)] *)
   let shift = ye - b in
   let pc =
     if shift >= 0 then
@@ -279,6 +299,8 @@ let dpower xc xe yc ye p =
   in
   let coef, exp =
     if Z.(equal pc zero) then
+      (* we prefer a result that isn't exactly 1; this makes it easier to
+         compute a correctly rounded result in [pow] *)
       if ((xc |> Z.to_string |> String.length) + xe >= 1) = Z.(gt yc zero) then
         let p_minus_1 = p - 1 in
         Z.(pow z10 p_minus_1 + one), 1 - p
