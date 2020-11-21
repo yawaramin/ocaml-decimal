@@ -56,3 +56,4 @@ can apply the changes as patches after re-dowloading the relevant `*.decTest`
 files:
 
     git show 07074859567e936b8d170aba5ef58889a4d9d467 | git apply
+    git show ae0196377fb7a99db7f198f2fb242e6a2fe4541e | git apply
