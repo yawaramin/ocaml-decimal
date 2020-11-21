@@ -1033,7 +1033,8 @@ let hash t =
     | Finite { sign; coef; exp } ->
       let zero_stripped = Str.replace_first Calc.zeros "" coef in
       let num_stripped = String.length coef - String.length zero_stripped in
-      Sign.to_string sign ^ zero_stripped ^ string_of_int (exp + num_stripped)
+      let exp = string_of_int (exp + num_stripped) in
+      Sign.to_string sign ^ "," ^ zero_stripped ^ "," ^ exp
   in
   Hashtbl.hash norm
 
