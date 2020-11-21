@@ -28,7 +28,11 @@ let flag_was_set context flag =
   with
   | Assert_failure _ as e ->
     begin
-      Format.printf "\nFAIL: %s\ncontext: %a\n" flag_string C.pp context;
+      Format.fprintf
+        Format.err_formatter
+        "\nFAIL: %s\ncontext: %a\n"
+        flag_string
+        C.pp context;
       raise e
     end
 
@@ -54,7 +58,11 @@ let assert_decimal ~context ~expected actual =
   try assert D.(of_string ~context expected = actual) with
   | Assert_failure _ as e ->
     begin
-      Format.printf "\nFAIL: %a\ncontext: %a\n" D.pp actual C.pp context;
+      Format.fprintf
+        Format.err_formatter
+        "\nFAIL: %a\ncontext: %a\n"
+        D.pp actual
+        C.pp context;
       raise e
     end
 
@@ -62,7 +70,11 @@ let assert_int ~context ~expected actual =
   try assert (int_of_string expected = actual) with
   | Assert_failure _ as e ->
     begin
-      Format.printf "\nFAIL: %d\ncontext: %a\n" actual C.pp context;
+      Format.fprintf
+        Format.err_formatter
+        "\nFAIL: %d\ncontext: %a\n"
+        actual
+        C.pp context;
       raise e
     end
 
@@ -180,4 +192,6 @@ let () =
     "data/quantize.decTest";
     "data/remainder.decTest";
     "data/subtract.decTest";
-  ]
+  ];
+
+  print_endline "\nOK."
