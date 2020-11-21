@@ -312,3 +312,24 @@ let dpower xc xe yc ye p =
       coef, succ exp
   in
   coef, exp
+
+(** [log10_lb ?correction c] is a lower bound for [100 * log10 c] for a positive
+    integer [c]. *)
+let log10_lb
+  ?(correction=[
+    '1', 100;
+    '2', 70;
+    '3', 53;
+    '4', 40;
+    '5', 31;
+    '6', 23;
+    '7', 16;
+    '8', 10;
+    '9', 5;
+  ])
+  c =
+  if Z.(Compare.(c <= zero)) then
+    invalid_arg "log10_lb: argument should be non-negative"
+  else
+    let str_c = Z.to_string c in
+    100 * String.length str_c - List.assoc str_c.[0] correction
