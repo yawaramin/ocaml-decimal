@@ -303,6 +303,8 @@ val of_float : ?context:Context.t -> float -> t
     preferred. *)
 
 val to_bigint : t -> Z.t
+(** [to_bigint t] is [t] converted to a bigint and truncated if necessary. *)
+
 val to_bool : t -> bool
 val to_rational : t -> Q.t
 val to_string : ?eng:bool -> ?context:Context.t -> t -> string

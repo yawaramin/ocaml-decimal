@@ -475,9 +475,15 @@ let to_bigint = function
   | Inf _ ->
     invalid_arg "to_bigint: cannot convert ∞ to integer"
   | Finite { sign; coef; exp } ->
-    let s = sign |> Sign.to_int |> Z.of_int in
-    if exp >= 0 then Z.(s * of_string coef * pow z10 exp)
-    else Z.(s * of_string (String.sub coef 0 exp))
+    let z =
+      if exp >= 0 then
+        Z.(of_string coef * pow z10 exp)
+      else
+        match String.sub coef 0 (String.length coef + exp) with
+        | string -> Z.of_string string
+        | exception Invalid_argument _ -> Z.zero
+    in
+    match sign with| Pos -> z | Neg -> Z.neg z
 
 let to_tuple = function
   | Inf sign -> Sign.to_int sign, "Inf", 0
