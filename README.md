@@ -5,6 +5,8 @@ from Python
 [`decimal` module](https://github.com/python/cpython/blob/23831a7a90956e38b7d70304bb6afe30d37936de/Lib/_pydecimal.py).
 It uses Zarith to do biginteger arithmetic.
 
+Opam: https://opam.ocaml.org/packages/decimal/
+
 ## License
 
 This package is licensed under the
@@ -28,6 +30,9 @@ for the sake of simplicity, as it is a derived work of the Python `decimal` modu
     # (* default precision is 32 *)
       D.(i 1 / i 3);;
     - : D.t = 0.33333333333333333333333333333333
+    # (* round to decimal places: *)
+      D.(round ~n:2 (of_int 22 / of_int 7));;
+    - : D.t = 3.14
 
 ## Dev
 

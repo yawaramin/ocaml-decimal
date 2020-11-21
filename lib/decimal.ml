@@ -483,7 +483,7 @@ let to_bigint = function
         | string -> Z.of_string string
         | exception Invalid_argument _ -> Z.zero
     in
-    match sign with| Pos -> z | Neg -> Z.neg z
+    match sign with Pos -> z | Neg -> Z.neg z
 
 let to_tuple = function
   | Inf sign -> Sign.to_int sign, "Inf", 0
