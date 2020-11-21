@@ -198,3 +198,30 @@ let dlog c e p =
   in
   (* error in sum < 11 + 27 = 38; error after division < 0.38 + 0.5 < 1 *)
   div_nearest Z.(f_log_ten + log_d) z100
+
+(** [iexp ?l x m] is an integer approximation of [m * exp (x / m)], given
+    [m > 0] and such that [x / m] is small in absolute value. For
+    [0 <= x / m <= 2.4], the absolute error in the result is bounded by 60 (and
+    is usually much smaller). *)
+let iexp ?(l=8) x m =
+  (* Find [r] such that [x / 2**r/m <= 2 ** ~-l] *)
+  let r = Z.(numbits (x lsl l /< m)) in
+
+  (* Taylor series. [(2 ** l)**t > m] *)
+  let t = -(-10 * String.length (Z.to_string m) / 3 * l) in
+  let y = ref (div_nearest x (Z.of_int t)) in
+  let mshift = ref Z.(m lsl r) in
+  for i = (t - 1) downto 0 do
+    let mshift = !mshift in
+    y := div_nearest Z.(x * mshift + !y) Z.(mshift * of_int i)
+  done;
+
+  (* Expansion *)
+  for k = (r - 1) downto -1 do
+    let k_plus_2 = k + 2 in
+    mshift := Z.(m lsl k_plus_2);
+    let y_val = !y in
+    let mshift = !mshift in
+    y := div_nearest Z.(y_val * (y_val + mshift)) mshift
+  done;
+  Z.(m + !y)
