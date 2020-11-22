@@ -301,6 +301,7 @@ val of_int : int -> t
 val of_string : ?context:Context.t -> string -> t
 
 val of_float : ?context:Context.t -> float -> t
+[@@alert lossy "Suffers from floating-point precision loss. Other constructors should be preferred."]
 (** [of_float ?context float] is the decimal representation of the [float]. This
     suffers from floating-point precision loss; the other constructors should be
     preferred. *)
