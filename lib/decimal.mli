@@ -287,6 +287,9 @@ end
 type t
 (** A decimal floating-point number. All operations are done in radix (base) 10. *)
 
+include Map.OrderedType with type t := t
+include Hashtbl.HashedType with type t := t
+
 val infinity : t
 val neg_infinity : t
 val nan : t
@@ -352,16 +355,6 @@ val round : ?n:int -> t -> t
 
 val sign : t -> int
 (** [sign t] is [-1] if t is negative, and [1] otherwise. *)
-
-val compare : t -> t -> int
-(** [compare t1 t2] is -1 if [t1 < t2], 0 if [t1 = t2], 1 if [t1 > t2]. *)
-
-val equal : t -> t -> bool
-(** [equal t1 t2] is [true] if [t1] and [t2] are equal regardless of precision
-    or scale, [false] otherwise. *)
-
-val hash : t -> int
-(** [hash t] is a hash of [t] following the rules of [Hashtbl.HashedType]. *)
 
 val min : t -> t -> t
 (** [min t1 t2] is the smaller of [t1] and [t2]. *)

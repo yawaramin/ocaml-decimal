@@ -390,7 +390,6 @@ let of_bigint value = Finite {
 }
 
 let of_float ?(context= !Context.default) value =
-  let float_str = string_of_float value in
   if value = Float.nan then
     nan
   else if value = Float.infinity then
@@ -412,7 +411,7 @@ let of_float ?(context= !Context.default) value =
         exp = -String.length frac;
       }
     | _ ->
-      Context.raise ~msg:float_str Conversion_syntax context
+      Context.raise ~msg:(Sign.to_string sign ^ str) Conversion_syntax context
 
 let to_bool = function Finite { coef = "0"; _ } -> false | _ -> true
 
