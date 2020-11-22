@@ -406,7 +406,11 @@ let of_float ?(context= !Context.default) value =
     | [coef; ""] ->
       Finite { sign; coef; exp = 1 }
     | [coef; frac] ->
-      Finite { sign; coef = coef ^ frac; exp = -String.length frac }
+      Finite {
+        sign;
+        coef = strip_leading_zeros coef ^ frac;
+        exp = -String.length frac;
+      }
     | _ ->
       Context.raise ~msg:float_str Conversion_syntax context
 

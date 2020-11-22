@@ -27,7 +27,7 @@
     for financial applications or for contexts where users have expectations
     that are at odds with binary floating point (for instance, in binary
     floating point, 1.00 mod 0.1 gives 0.09999999999999995 instead of 0.0;
-    Decimal.(of_string "1.00" mod of_string "0.1") returns the expected
+    [Decimal.(of_string "1.00" mod of_string "0.1")] returns the expected
     "0.00"). *)
 
 module Signal : sig
@@ -322,15 +322,23 @@ val copy_abs : t -> t
 (** [copy_abs t] is the absolute value of [t] without rounding. *)
 
 val adjusted : t -> int
+(** [adjusted t] is the exponent of [t] after adjusting its coefficient
+    (significand) into standard form, i.e. scientific notation.
+
+    E.g., [Decimal.("314" |> of_string |> adjusted)] is 2 because it is 3.14e2
+    in standard form. And, [Decimal.("42e-10" |> of_string |> adjusted)] is -9
+    because it is 4.2e-9 in standard form. *)
 
 val negate : ?context:Context.t -> t -> t
-(** [negate ?context t] is t negated, and rounded under [context] if necessary. *)
+(** [negate ?context t] is [t] negated, and rounded under [context] if
+    necessary. *)
 
 val copy_negate : t -> t
 (** [copy_negate t] is [t] negated without rounding. *)
 
 val posate : ?context:Context.t -> t -> t
-(** Opposite of [negate]; a no-op. *)
+(** Opposite of [negate]; [t]'s sign is left unchanged but [t] is rounded under
+    [context] if necessary. *)
 
 val quantize : ?context:Context.t -> ?round:Context.round -> exp:t -> t -> t
 (** [quantize ?context ?round ~exp t] is [t] quantized so that its exponent is
@@ -373,7 +381,7 @@ val rem : ?context:Context.t -> t -> t -> t
 (** [rem ?context t1 t2] is [t1 mod t2]. *)
 
 val fma : ?context:Context.t -> first_mul:t -> then_add:t -> t -> t
-(** [fma ?context ~first_mul ~then_add t] is fused multiple-add:
+(** [fma ?context ~first_mul ~then_add t] is fused multiply-add:
     [t * first_mul + then_add] with no rounding of the intermediate product.
 
     [t] and [first_mul] are multiplied together, then [then_add] is added to the
