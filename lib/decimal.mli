@@ -47,6 +47,9 @@ module Signal : sig
   (** [set array id bool] sets the state of the signal [id] in [array] to
       [bool]. *)
 
+  val unset_all : array -> unit
+  (** [unset_all array] sets all of the signals in [array] to false. *)
+
   val to_string : id -> string
   (** [to_string id] is [id]'s name. *)
 
@@ -309,6 +312,9 @@ val of_float : ?context:Context.t -> float -> t
 val to_bigint : t -> Z.t
 (** [to_bigint t] is [t] converted to a bigint and truncated if necessary. *)
 
+val to_int : t -> int
+(** [to_int t] is [t] converted to an int; may raise an overflow exception. *)
+
 val to_bool : t -> bool
 val to_rational : t -> Q.t
 val to_string : ?eng:bool -> ?context:Context.t -> t -> string
@@ -356,6 +362,9 @@ val round : ?n:int -> t -> t
 
 val sign : t -> int
 (** [sign t] is [-1] if t is negative, and [1] otherwise. *)
+
+val copysign : t -> t -> t
+(** [copysign t1 t2] is [t1] with the sign of [t2]. *)
 
 val min : t -> t -> t
 (** [min t1 t2] is the smaller of [t1] and [t2]. *)

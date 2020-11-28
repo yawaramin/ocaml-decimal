@@ -2,34 +2,35 @@ module Signal = struct
   type id = int
   type nonrec array = bool array
 
-  let clamped = 0
-  let invalid_operation = 1
-  let conversion_syntax = 2
-  let div_by_zero = 3
-  let div_impossible = 4
-  let div_undefined = 5
-  let inexact = 6
-  let rounded = 7
-  let subnormal = 8
-  let overflow = 9
-  let underflow = 10
+  let invalid_operation = 0
+  let conversion_syntax = 1
+  let div_by_zero = 2
+  let div_impossible = 3
+  let div_undefined = 4
+  let overflow = 5
+  let underflow = 6
+  let subnormal = 7
+  let inexact = 8
+  let rounded = 9
+  let clamped = 10
 
   let make () = Array.make 11 false
   let get = Array.get
   let set = Array.set
+  let unset_all array = for i = 0 to 10 do array.(i) <- false done
 
   let to_string = function
-    | 0 -> "clamped"
-    | 1 -> "invalid_operation"
-    | 2 -> "conversion_syntax"
-    | 3 -> "div_by_zero"
-    | 4 -> "div_impossible"
-    | 5 -> "div_undefined"
-    | 6 -> "inexact"
-    | 7 -> "rounded"
-    | 8 -> "subnormal"
-    | 9 -> "overflow"
-    | 10 -> "underflow"
+    | 0 -> "invalid_operation"
+    | 1 -> "conversion_syntax"
+    | 2 -> "div_by_zero"
+    | 3 -> "div_impossible"
+    | 4 -> "div_undefined"
+    | 5 -> "overflow"
+    | 6 -> "underflow"
+    | 7 -> "subnormal"
+    | 8 -> "inexact"
+    | 9 -> "rounded"
+    | 10 -> "clamped"
     | i -> failwith ("Signal.to_string: invalid signal: " ^ string_of_int i)
 
   let pp f array  =
@@ -222,6 +223,20 @@ module Context = struct
     | Div_undefined -> div_undefined
     | Div_by_zero _ -> div_by_zero
     | Overflow _ -> overflow
+
+  let flag_of_signal = function
+    | 6 ->
+      Underflow
+    | 7 ->
+      Subnormal
+    | 8 ->
+      Inexact
+    | 9 ->
+      Rounded
+    | 10 ->
+      Clamped
+    | s ->
+      failwith ("Context.flag_of_signal: unreachable: " ^ Signal.to_string s)
 
   let fail_msg str opt = str ^ match opt with
     | Some msg -> msg
@@ -488,6 +503,8 @@ let to_bigint = function
     in
     match sign with Pos -> z | Neg -> Z.neg z
 
+let to_int t = t |> to_bigint |> Z.to_int
+
 let to_tuple = function
   | Inf sign -> Sign.to_int sign, "Inf", 0
   | NaN -> 1, "NaN", 0
@@ -499,6 +516,14 @@ let sign_t = function
   | Finite { sign; _ } -> sign
 
 let sign t = t |> sign_t |> Sign.to_int
+
+let copysign t1 t2 = match t1, t2 with
+  | NaN, _
+  | _, NaN -> nan
+  | Inf _, Inf _ -> t2
+  | Finite finite, Finite { sign; _ }
+  | Finite finite, Inf sign -> Finite { finite with sign }
+  | Inf _, Finite { sign; _ } -> Inf sign
 
 let adjust exp coef = exp + String.length coef - 1
 
@@ -1144,6 +1169,198 @@ let abs ?(round=true) ?(context= !Context.default) t =
     | Inf _ -> infinity
     | Finite { sign = Neg; _ } -> negate ~context t
     | _ -> posate ~context t
+
+let powm ?context _ _ _ =
+  ignore context;
+  failwith "!"
+
+let z5 = Z.of_int 5
+
+let pow ?modulo ?(context= !Context.default) base exp =
+  let result_sign base_sign exp_coef_int =
+    let exp_coef_even = Z.(equal (exp_coef_int mod (of_int 2)) zero) in
+    match base_sign, exp_coef_even with
+    | Sign.Neg, true -> Sign.Pos
+    | _ -> Pos
+  in
+  match modulo with
+  | Some m ->
+    powm ~context base exp m
+  | None ->
+    begin match base, exp with
+    | NaN, _
+    | _, NaN ->
+      Context.raise Invalid_operation context
+
+    (* [0**0 = NaN] *)
+    | Finite { coef = "0"; _ }, Finite { coef = "0"; _ } ->
+      Context.raise ~msg:"0 ** 0" Invalid_operation context
+
+    (* [x**0 = 1] for nonzero [x] *)
+    | _, Finite { coef = "0"; _ } ->
+      one
+    | Finite { sign = Neg; coef = "0"; _ }, Inf Pos
+    | Finite { coef = "0"; _ }, (Finite { sign = Pos; _ } | Inf Pos)
+    | Inf Pos, (Finite { sign = Neg; _ } | Inf Neg) ->
+      zero
+    | Finite { coef = "0"; _ }, Inf Neg
+    | Inf Pos, (Finite { sign = Pos; _ } | Inf Pos) ->
+      infinity
+    | Inf Neg, Finite finite ->
+      let coef_int = Z.of_string finite.coef in
+      let result_sign = if Z.is_even coef_int then Sign.Pos else Neg in
+      begin match Z.compare coef_int Z.zero with
+      | -1 -> Finite { sign = result_sign; coef = "0"; exp = 0 }
+      | 0 -> one
+      | 1 -> Inf result_sign
+      | _ -> failwith "pow: unreachable"
+      end
+    | (Inf Neg | Finite { sign = Neg; _ }), Inf _ ->
+      Context.raise
+        ~msg:"x ** y with x negative and y not an integer"
+        Invalid_operation
+        context
+    | Finite { sign = base_sign; coef = "1"; exp = base_exp }, Finite finite ->
+      let exp_coef_int = Z.of_string finite.coef in
+      let multiplier =
+        if finite.sign = Neg then 0
+        else if compare exp (of_int context.prec) = 1 then context.prec
+        else Z.to_int exp_coef_int
+      in
+      let exp = base_exp * multiplier in
+      let one_minus_prec = 1 - context.prec in
+      let exp =
+        if exp < one_minus_prec then begin
+          Context.raise Rounded context;
+          one_minus_prec
+        end else
+          exp
+      in
+      Finite {
+        sign = result_sign base_sign exp_coef_int;
+        coef = zero_pad_right ~-exp "1";
+        exp;
+      }
+    | Finite { sign = Pos; coef = "1"; _ }, Inf (Pos | Neg) ->
+      let exp = context.prec - 1 in
+      Context.raise Inexact context;
+      Context.raise Rounded context;
+      Finite { sign = Pos; coef = zero_pad_right exp "1"; exp }
+    | Finite _, Inf Pos ->
+      infinity
+    | Finite _, Inf Neg ->
+      neg_infinity
+    | Finite fbase, Finite fexp ->
+      let ans = ref infinity in
+      let exact = ref false in
+      let base_adj = adjusted base in
+      let bound = log10_exp_bound base + adjusted exp in
+      let e_max = Context.e_max context in
+      let fexp_coef_int = Z.of_string fexp.coef in
+      let result_sign = result_sign fbase.sign fexp_coef_int in
+      if (base_adj >= 0) = (fexp.sign = Pos) then begin
+        if bound >= (e_max |> string_of_int |> String.length) then
+          ans := Finite { sign = result_sign; coef = "1"; exp = e_max + 1 }
+      end else begin
+        let e_tiny = Context.e_tiny context in
+        if bound >= (-e_tiny |> string_of_int |> String.length) then
+          ans := Finite { sign = result_sign; coef = "1"; exp = e_tiny - 1 }
+      end;
+      if !ans = infinity then begin
+        ans := power_exact base exp (context.prec + 1);
+        if !ans <> infinity then begin
+          if result_sign = Neg then begin
+            match !ans with
+            | Finite { coef; exp; _ } ->
+              ans := Finite { sign = Neg; coef; exp }
+            | _ -> failwith "power: unreachable"
+          end;
+          exact := true
+        end;
+      end;
+      if !ans = infinity then begin
+        let p = context.prec in
+        let fbase_coef_int = Z.of_string fbase.coef in
+        let fexp_coef_int =
+          if fexp.sign = Neg then
+            Z.(fexp.coef |> of_string |> neg)
+          else
+            Z.of_string fexp.coef
+        in
+        let rec get_coeff_exp coeff exp extra =
+          let len = String.length (Z.to_string coeff) - p - 1 in
+          if Z.(equal (rem coeff (z5 * pow z10 len)) zero) then
+            let coeff, exp = Calc.dpower
+              fbase_coef_int
+              fbase.exp
+              fexp_coef_int
+              fexp.exp
+              (p + extra)
+            in
+            get_coeff_exp coeff exp (extra + 3)
+          else
+            coeff, exp
+        in
+        let extra = 3 in
+        let coeff, exp = Calc.dpower
+          fbase_coef_int
+          fbase.exp
+          fexp_coef_int
+          fexp.exp
+          (p + extra)
+        in
+        let coeff, exp = get_coeff_exp coeff exp extra in
+        ans := Finite { sign = result_sign; coef = Z.to_string coeff; exp }
+      end;
+      begin match !exact, !ans, exp with
+      | true, Finite { sign = ans_sign; coef; exp }, (Inf _ | NaN) ->
+        let len_coef = String.length coef in
+        if len_coef <= context.prec then begin
+          let expdiff = context.prec + 1 - len_coef in
+          ans := Finite {
+            sign = ans_sign;
+            coef = zero_pad_right expdiff coef;
+            exp = exp - expdiff
+          }
+        end;
+        let newcontext = Context.copy ~orig:context () in
+        Signal.unset_all newcontext.flags;
+        Signal.unset_all newcontext.traps;
+        ans := fix newcontext !ans;
+        Context.raise Inexact newcontext;
+        if Signal.get newcontext.flags Signal.subnormal then begin
+          Context.raise Underflow newcontext
+        end;
+        if Signal.get newcontext.flags Signal.overflow then begin
+          ignore (Context.raise ~msg:"above Emax" (Overflow (sign_t !ans)) context)
+        end;
+        for signal = Signal.underflow to Signal.clamped do
+          if Signal.get newcontext.flags signal then
+            Context.raise (Context.flag_of_signal signal) context
+        done;
+      | _ ->
+        ans := fix context !ans
+      end;
+      !ans
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 let ( ~- ) t = negate t
 let ( ~+ ) t = posate t
