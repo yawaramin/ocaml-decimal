@@ -1211,6 +1211,39 @@ let powm ?(context= !Context.default) base exp m = match base, exp, m with
     base2 := Z.powm !base2 exp_int m_int;
     Finite { sign; coef = Z.to_string !base2; exp = 0 }
 
+let z231 = Z.of_int 231
+
+(** [log10_exp_bound finite] is a lower bound for the adjusted exponent of
+    [log10 finite]. In other words, find [r] such that [log10 finite >= 10**r].
+    Assumes that [finite] is positive and not [1]. *)
+let log10_exp_bound { coef; exp; _ } =
+  (* For [x >= 10] or [x < 0.1] we only need a bound on the integer part of
+     [log10 finite], and this comes directly from the exponent of [x]. For
+     [0.1 <= x <= 10] we use the inequalities [1-1/x <= log x <= x - 1]. If
+     [x > 1] we have [abs (log10 x) > (1-1/x)/2.31 > 0]. If [x < 1] then
+     [abs (log10 x) > (1-x)/2.31 > 0] *)
+  let adj = adjust exp coef in
+  if adj >= 1 then
+    (* [finite >= 10] *)
+    String.length (string_of_int adj) - 1
+  else if adj <= -2 then
+    (* [finite < 0.1] *)
+    String.length (string_of_int (-1 - adj)) - 1
+  else
+    let t_int = Z.of_string coef in
+    let neg_exp = -exp in
+    if adj = 0 then
+      (* [1 < finite < 10] *)
+      let num = Z.(to_string (t_int - pow z10 neg_exp)) in
+      let den = Z.(to_string (t_int * z231)) in
+      let num_lt_den = if num < den then 1 else 0 in
+      String.length num - String.length den - num_lt_den + 2
+    else
+      (* [adj = -1], [0.1 <= finite < 1] *)
+      let num = Z.(to_string (pow z10 neg_exp - t_int)) in
+      let num_lt_231 = if num < "231" then 1 else 0 in
+      String.length num + exp - num_lt_231 - 1
+
 let z5 = Z.of_int 5
 
 let pow ?modulo ?(context= !Context.default) base exp =
@@ -1291,7 +1324,7 @@ let pow ?modulo ?(context= !Context.default) base exp =
       let ans = ref infinity in
       let exact = ref false in
       let base_adj = adjusted base in
-      let bound = log10_exp_bound base + adjusted exp in
+      let bound = log10_exp_bound fbase + adjusted exp in
       let e_max = Context.e_max context in
       let fexp_coef_int = Z.of_string fexp.coef in
       let result_sign = result_sign fbase.sign fexp_coef_int in
