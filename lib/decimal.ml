@@ -1170,9 +1170,46 @@ let abs ?(round=true) ?(context= !Context.default) t =
     | Finite { sign = Neg; _ } -> negate ~context t
     | _ -> posate ~context t
 
-let powm ?context _ _ _ =
-  ignore context;
-  failwith "!"
+let powm ?(context= !Context.default) base exp m = match base, exp, m with
+  | NaN, _, _
+  | _, NaN, _
+  | _, _, NaN ->
+    Context.raise Invalid_operation context
+  | Inf _, _, _
+  | _, Inf _, _
+  | _, _, Inf _ ->
+    Context.raise
+      ~msg:"pow: m not allowed unless all arguments are integers"
+      Invalid_operation
+      context
+  | _, Finite { sign = Neg; _ }, _ ->
+    Context.raise
+      ~msg:"pow: exp cannot be < 0 when m is specified"
+      Invalid_operation
+      context
+  | _, _, Finite { coef = "0"; _ } ->
+    Context.raise ~msg:"pow: m cannot be 0" Invalid_operation context
+  | _ when adjusted m >= context.prec ->
+    Context.raise
+      ~msg:"pow: insufficient precision: m must have no more than precision digits"
+      Invalid_operation
+      context
+  | Finite { coef = "0"; _ }, Finite { coef = "0"; _ }, _ ->
+    Context.raise
+      ~msg:"pow: at least one of base or exp must be nonzero; 0**0 is not defined"
+      Invalid_operation
+      context
+  | Finite base, Finite exp, Finite m ->
+    let base_int = Z.of_string base.coef in
+    let exp_int = Z.of_string exp.coef in
+    let m_int = m.coef |> Z.of_string |> Z.abs in
+    let sign = if Z.is_even exp_int then Sign.Pos else base.sign in
+    let base2 = ref
+      Z.((base_int mod m_int * (powm z10 (of_int base.exp) m_int)) mod m_int)
+    in
+    for i = 0 to exp.exp - 1 do base2 := Z.powm !base2 z10 m_int done;
+    base2 := Z.powm !base2 exp_int m_int;
+    Finite { sign; coef = Z.to_string !base2; exp = 0 }
 
 let z5 = Z.of_int 5
 
@@ -1337,30 +1374,12 @@ let pow ?modulo ?(context= !Context.default) base exp =
         for signal = Signal.underflow to Signal.clamped do
           if Signal.get newcontext.flags signal then
             Context.raise (Context.flag_of_signal signal) context
-        done;
+        done
       | _ ->
         ans := fix context !ans
       end;
       !ans
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    end
 
 let ( ~- ) t = negate t
 let ( ~+ ) t = posate t
