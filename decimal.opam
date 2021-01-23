@@ -33,3 +33,5 @@ build: [
   ]
 ]
 dev-repo: "git+https://github.com/yawaramin/ocaml-decimal.git"
+available:
+  arch = "arm64" | arch = "x86_64"
