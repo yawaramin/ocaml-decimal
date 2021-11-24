@@ -296,6 +296,12 @@ val nan : t
 val one : t
 val zero : t
 
+val is_nan : t -> bool
+val is_normal : ?context:Context.t -> t -> bool
+val is_finite : t -> bool
+val is_infinite : t -> bool
+val is_signed : t -> bool
+
 val of_bigint : Z.t -> t
 val of_int : int -> t
 val of_string : ?context:Context.t -> string -> t
@@ -383,11 +389,31 @@ val fma : ?context:Context.t -> first_mul:t -> then_add:t -> t -> t
 
 val ( ~- ) : t -> t
 val ( ~+ ) : t -> t
+
 val ( = ) : t -> t -> bool
+(** @raise Invalid_argument if comparing [NaN]. *)
+
+val ( <> ) : t -> t -> bool
+(** @raise Invalid_argument if comparing [NaN]. *)
+
+val ( == ) : t -> t -> bool
+[@@alert phys_eq "Physical equality of decimals is rarely useful"]
+
+val ( != ) : t -> t -> bool
+[@@alert phys_eq "Physical equality of decimals is rarely useful"]
+
 val ( < ) : t -> t -> bool
+(** @raise Invalid_argument if comparing [NaN]. *)
+
 val ( > ) : t -> t -> bool
+(** @raise Invalid_argument if comparing [NaN]. *)
+
 val ( <= ) : t -> t -> bool
+(** @raise Invalid_argument if comparing [NaN]. *)
+
 val ( >= ) : t -> t -> bool
+(** @raise Invalid_argument if comparing [NaN]. *)
+
 val ( + ) : t -> t -> t
 val ( - ) : t -> t -> t
 val ( * ) : t -> t -> t

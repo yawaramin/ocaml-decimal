@@ -55,8 +55,11 @@ let eval_test_directive = function
   | _ -> ()
 
 let assert_decimal ~context ~expected actual =
-  try assert D.(of_string ~context expected = actual) with
-  | Assert_failure _ as e ->
+  let expected = D.of_string ~context expected in
+  try
+    if D.is_nan expected then assert (D.is_nan actual)
+    else assert D.(expected = actual)
+  with Assert_failure _ as e ->
     begin
       Format.fprintf
         Format.err_formatter

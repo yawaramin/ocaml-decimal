@@ -294,6 +294,23 @@ let nan = NaN
 let one = Finite { sign = Pos; coef = "1"; exp = 0 }
 let zero = Finite { sign = Pos; coef = "0"; exp = 0 }
 
+let adjust exp coef = exp + String.length coef - 1
+
+let adjusted = function
+  | Inf _ | NaN -> 0
+  | Finite { exp; coef; _ } -> adjust exp coef
+
+let is_nan = function NaN -> true | _ -> false
+
+let is_normal ?(context= !Context.default) = function
+  | Inf _
+  | NaN -> false
+  | (Finite _) as t -> Context.e_min context <= adjusted t
+
+let is_finite = function Finite _ -> true | _ -> false
+let is_infinite = function Finite _ -> false | _ -> true
+let is_signed = function Finite { sign = Neg; _ } | Inf Neg -> true | _ -> false
+
 let nan_r = Str.regexp "^[+-]?[qs]?nan.*$"
 let inf_r = Str.regexp {|^[+]?inf\(inity\)?$|}
 let neg_inf_r = Str.regexp {|^-inf\(inity\)?$|}
@@ -417,7 +434,7 @@ let to_bool = function Finite { coef = "0"; _ } -> false | _ -> true
 
 let to_string ?(eng=false) ?(context= !Context.default) = function
   | Inf sign ->
-    Sign.to_string sign ^ "Inf"
+    Sign.to_string sign ^ "Infinity"
   | NaN ->
     "NaN"
   | Finite { sign; coef; exp } ->
@@ -499,12 +516,6 @@ let sign_t = function
   | Finite { sign; _ } -> sign
 
 let sign t = t |> sign_t |> Sign.to_int
-
-let adjust exp coef = exp + String.length coef - 1
-
-let adjusted = function
-  | Inf _ | NaN -> 0
-  | Finite { exp; coef; _ } -> adjust exp coef
 
 let zero_pad_right n string =
   if n < 1 then string
@@ -982,12 +993,12 @@ let fma ?(context= !Context.default) ~first_mul ~then_add t =
 let compare t1 t2 = match t1, t2 with
   (* Deal with specials *)
   | Inf Pos, Inf Pos
-  | Inf Neg, Inf Neg
-  | NaN, NaN ->
+  | Inf Neg, Inf Neg ->
     0
-  | NaN, _
+  | NaN, _ ->
+    invalid_arg "compare NaN _"
   | _, NaN ->
-    invalid_arg "compare: cannot compare NaN with decimal"
+    invalid_arg "compare _ NaN"
   | Inf Neg, _
   | _, Inf Pos ->
     -1
@@ -1152,6 +1163,9 @@ let ( > ) t1 t2 = compare t1 t2 = 1
 let ( <= ) t1 t2 = compare t1 t2 <= 0
 let ( >= ) t1 t2 = compare t1 t2 >= 0
 let ( = ) = equal
+let ( <> ) t1 t2 = compare t1 t2 <> 0
+let ( == ) = ( == )
+let ( != ) = ( != )
 let ( + ) t1 t2 = add t1 t2
 let ( - ) t1 t2 = sub t1 t2
 let ( * ) t1 t2 = mul t1 t2
