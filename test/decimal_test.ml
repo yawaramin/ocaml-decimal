@@ -196,5 +196,7 @@ let () =
     "data/remainder.decTest";
     "data/subtract.decTest";
   ];
+  print_endline "";
+  Json.test ();
 
   print_endline "\nOK."

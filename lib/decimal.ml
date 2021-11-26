@@ -430,6 +430,22 @@ let of_float ?(context= !Context.default) value =
     | _ ->
       Context.raise ~msg:(Sign.to_string sign ^ str) Conversion_syntax context
 
+let of_yojson = function
+  | `Int i ->
+    Ok (of_int i)
+  | `Float f ->
+    begin match of_float f with
+    | t -> Ok t
+    | exception Invalid_argument msg -> Error msg
+    end
+  | `String s ->
+    begin match of_string s with
+    | t -> Ok t
+    | exception Invalid_argument msg -> Error msg
+    end
+  | _ ->
+    Error "of_yojson: invalid argument"
+
 let to_bool = function Finite { coef = "0"; _ } -> false | _ -> true
 
 let to_string ?(eng=false) ?(context= !Context.default) = function
@@ -478,6 +494,8 @@ let to_string ?(eng=false) ?(context= !Context.default) = function
         e ^ s ^ string_of_int value
     in
     Sign.to_string sign ^ intpart ^ fracpart ^ exp
+
+let to_yojson t = `String (to_string t)
 
 let pp f t = t |> to_string |> Format.pp_print_string f
 

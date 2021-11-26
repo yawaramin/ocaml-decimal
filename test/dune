@@ -1,4 +1,4 @@
 (test
   (name decimal_test)
   (deps (glob_files data/*.decTest))
-  (libraries angstrom decimal))
+  (libraries alcotest angstrom decimal))

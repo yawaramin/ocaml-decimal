@@ -306,6 +306,17 @@ val of_bigint : Z.t -> t
 val of_int : int -> t
 val of_string : ?context:Context.t -> string -> t
 
+val of_yojson :
+  [> `Int of int | `Float of float | `String of string] -> (t, string) result
+(** [of_yojson json] is the result of parsing a JSON value into a decimal:
+
+    - integer is parsed
+    - float is parsed with the usual caveat about float imprecision
+    - string is parsed
+    - anything else fails to parse
+
+    @since 0.3.0 *)
+
 val of_float : ?context:Context.t -> float -> t
 [@@alert lossy "Suffers from floating-point precision loss. Other constructors should be preferred."]
 (** [of_float ?context float] is the decimal representation of the [float]. This
@@ -318,6 +329,13 @@ val to_bigint : t -> Z.t
 val to_bool : t -> bool
 val to_rational : t -> Q.t
 val to_string : ?eng:bool -> ?context:Context.t -> t -> string
+
+val to_yojson : t -> [> `String of string]
+(** [to_yojson t] is the JSON representation of decimal value [t]. Note that it
+    is encoded as a string to avoid losing precision.
+
+    @since 0.3.0 *)
+
 val pp : Format.formatter -> t -> unit
 
 val to_tuple : t -> int * string * int
