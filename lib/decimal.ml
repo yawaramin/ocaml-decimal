@@ -1013,14 +1013,11 @@ let compare t1 t2 = match t1, t2 with
   | Inf Pos, Inf Pos
   | Inf Neg, Inf Neg ->
     0
-  | NaN, _ ->
-    invalid_arg "compare NaN _"
-  | _, NaN ->
-    invalid_arg "compare _ NaN"
-  | Inf Neg, _
+  (* Mimic Float.compare behaviour *)
+  | (NaN | Inf Neg), _
   | _, Inf Pos ->
     -1
-  | _, Inf Neg
+  | _, (NaN | Inf Neg)
   | Inf Pos, _ ->
     1
 
@@ -1176,12 +1173,31 @@ let abs ?(round=true) ?(context= !Context.default) t =
 
 let ( ~- ) t = negate t
 let ( ~+ ) t = posate t
-let ( < ) t1 t2 = compare t1 t2 = -1
-let ( > ) t1 t2 = compare t1 t2 = 1
-let ( <= ) t1 t2 = compare t1 t2 <= 0
-let ( >= ) t1 t2 = compare t1 t2 >= 0
-let ( = ) = equal
-let ( <> ) t1 t2 = compare t1 t2 <> 0
+
+let ( < ) t1 t2 = match t1, t2 with
+  | NaN, _ | _, NaN -> false
+  | _ -> compare t1 t2 < 0
+
+let ( > ) t1 t2 = match t1, t2 with
+  | NaN, _ | _, NaN -> false
+  | _ -> compare t1 t2 > 0
+
+let ( <= ) t1 t2 = match t1, t2 with
+  | NaN, _ | _, NaN -> false
+  | _ -> compare t1 t2 <= 0
+
+let ( >= ) t1 t2 = match t1, t2 with
+  | NaN, _ | _, NaN -> false
+  | _ -> compare t1 t2 >= 0
+
+let ( = ) t1 t2 = match t1, t2 with
+  | NaN, _ | _, NaN -> false
+  | _ -> compare t1 t2 = 0
+
+let ( <> ) t1 t2 = match t1, t2 with
+  | NaN, _ | _, NaN -> false
+  | _ -> compare t1 t2 <> 0
+
 let ( == ) = ( == )
 let ( != ) = ( != )
 let ( + ) t1 t2 = add t1 t2

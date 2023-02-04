@@ -2,7 +2,7 @@
    2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020 Python Software
    Foundation; All Rights Reserved.
 
-   Copyright (c) 2020 Yawar Amin; All Rights Reserved.
+   Copyright (c) 2020, 2021, 2022, 2023 Yawar Amin; All Rights Reserved.
 
    Written by Eric Price <eprice at tjhsst.edu>
      and Facundo Batista <facundo at taniquetil.com.ar>
@@ -373,10 +373,10 @@ val quantize : ?context:Context.t -> ?round:Context.round -> exp:t -> t -> t
     the same as that of [exp]. *)
 
 val round : ?n:int -> t -> t
+[@@alert exn "Invalid_argument if t is ∞ or NaN"]
 (** [round ?n t] is [t] rounded to the nearest integer, or to a given precision.
-    If [n] is [None], round [t] to the nearest integer. If [t] is ∞ or [NaN]
-    then raises an exception. If [t] lies exactly halfway between two integers
-    then it is rounded to the even integer. *)
+    If [n] is [None], round [t] to the nearest integer. If [t] lies exactly
+    halfway between two integers then it is rounded to the even integer. *)
 
 val sign : t -> int
 (** [sign t] is [-1] if t is negative, and [1] otherwise. *)
@@ -409,10 +409,7 @@ val ( ~- ) : t -> t
 val ( ~+ ) : t -> t
 
 val ( = ) : t -> t -> bool
-(** @raise Invalid_argument if comparing [NaN]. *)
-
 val ( <> ) : t -> t -> bool
-(** @raise Invalid_argument if comparing [NaN]. *)
 
 val ( == ) : t -> t -> bool
 [@@alert phys_eq "Physical equality of decimals is rarely useful"]
@@ -421,16 +418,9 @@ val ( != ) : t -> t -> bool
 [@@alert phys_eq "Physical equality of decimals is rarely useful"]
 
 val ( < ) : t -> t -> bool
-(** @raise Invalid_argument if comparing [NaN]. *)
-
 val ( > ) : t -> t -> bool
-(** @raise Invalid_argument if comparing [NaN]. *)
-
 val ( <= ) : t -> t -> bool
-(** @raise Invalid_argument if comparing [NaN]. *)
-
 val ( >= ) : t -> t -> bool
-(** @raise Invalid_argument if comparing [NaN]. *)
 
 val ( + ) : t -> t -> t
 val ( - ) : t -> t -> t
