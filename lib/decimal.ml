@@ -311,6 +311,15 @@ let is_finite = function Finite _ -> true | _ -> false
 let is_infinite = function Finite _ -> false | _ -> true
 let is_signed = function Finite { sign = Neg; _ } | Inf Neg -> true | _ -> false
 
+let is_integral = function
+  | Finite { exp; _ } when exp >= 0 -> true
+  | Finite { coef; exp; _ } ->
+    (* [exp] is negative so we negate it to index into [coef] *)
+    let idx = Int.neg exp in
+    let end_ = String.(sub coef (length coef - idx) idx) in
+    String.for_all (Char.equal '0') end_
+  | _ -> false
+
 let nan_r = Str.regexp "^[+-]?[qs]?nan.*$"
 let inf_r = Str.regexp {|^[+]?inf\(inity\)?$|}
 let neg_inf_r = Str.regexp {|^-inf\(inity\)?$|}
