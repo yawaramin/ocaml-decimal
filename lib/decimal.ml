@@ -311,19 +311,20 @@ let is_finite = function Finite _ -> true | _ -> false
 let is_infinite = function Finite _ -> false | _ -> true
 let is_signed = function Finite { sign = Neg; _ } | Inf Neg -> true | _ -> false
 
+let nan_r = Str.regexp "^[+-]?[qs]?nan.*$"
+let inf_r = Str.regexp {|^[+]?inf\(inity\)?$|}
+let neg_inf_r = Str.regexp {|^-inf\(inity\)?$|}
+let finite_r = Str.regexp {|^[+-]?[0-9]*\.?[0-9]*\(e[+-]?[0-9]+\)?$|}
+let zeros_r = Str.regexp "0*$"
+
 let is_integral = function
   | Finite { exp; _ } when exp >= 0 -> true
   | Finite { coef; exp; _ } ->
     (* [exp] is negative so we negate it to index into [coef] *)
     let idx = - exp in
     let end_ = String.(sub coef (length coef - idx) idx) in
-    String.for_all (Char.equal '0') end_
+    Str.string_match zeros_r end_ 0
   | _ -> false
-
-let nan_r = Str.regexp "^[+-]?[qs]?nan.*$"
-let inf_r = Str.regexp {|^[+]?inf\(inity\)?$|}
-let neg_inf_r = Str.regexp {|^-inf\(inity\)?$|}
-let finite_r = Str.regexp {|^[+-]?[0-9]*\.?[0-9]*\(e[+-]?[0-9]+\)?$|}
 
 let parts_of value =
   let value = value
@@ -565,9 +566,8 @@ module Round = struct
       zeros
     - -1 means there are nonzero digits to be truncated *)
 
-  let zeros = Str.regexp "0*$"
   let half = Str.regexp "50*$"
-  let all_zeros = Str.string_match zeros
+  let all_zeros = Str.string_match zeros_r
   let exact_half = Str.string_match half
   let gt5 = ['5'; '6'; '7'; '8'; '9']
   let evens = ['0'; '2'; '4'; '6'; '8']
