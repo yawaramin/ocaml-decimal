@@ -315,7 +315,7 @@ let is_integral = function
   | Finite { exp; _ } when exp >= 0 -> true
   | Finite { coef; exp; _ } ->
     (* [exp] is negative so we negate it to index into [coef] *)
-    let idx = Int.neg exp in
+    let idx = - exp in
     let end_ = String.(sub coef (length coef - idx) idx) in
     String.for_all (Char.equal '0') end_
   | _ -> false
