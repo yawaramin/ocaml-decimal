@@ -301,6 +301,7 @@ val is_normal : ?context:Context.t -> t -> bool
 val is_finite : t -> bool
 val is_infinite : t -> bool
 val is_signed : t -> bool
+val is_integral : t -> bool
 
 val of_bigint : Z.t -> t
 val of_int : int -> t
