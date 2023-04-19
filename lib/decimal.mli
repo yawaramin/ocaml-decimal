@@ -406,6 +406,9 @@ val fma : ?context:Context.t -> first_mul:t -> then_add:t -> t -> t
     [t] and [first_mul] are multiplied together, then [then_add] is added to the
     product, then a final rounding is performed. *)
 
+val sqrt : ?context:Context.t -> t -> t
+(** [sqrt ?context x] is the square root of [x] *)
+
 val ( ~- ) : t -> t
 val ( ~+ ) : t -> t
 
