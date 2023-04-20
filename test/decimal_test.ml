@@ -152,6 +152,12 @@ let eval_test_case {
       ~context
       ~expected
       D.(sub ~context (of_string ~context t1) (of_string ~context t2))
+  | Square_root, [t] ->
+    Printf.printf "sqrt(%s) = %s" t expected;
+    assert_decimal
+      ~context
+      ~expected
+      D.(sqrt ~context (of_string ~context t))
   | _ -> ()
   end;
   List.iter (flag_was_set context) expected_signals
@@ -195,6 +201,7 @@ let () =
     "data/quantize.decTest";
     "data/remainder.decTest";
     "data/subtract.decTest";
+    "data/squareroot.decTest";
   ];
   print_endline "";
   Json.test ();

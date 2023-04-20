@@ -1180,6 +1180,70 @@ let abs ?(round=true) ?(context= !Context.default) t =
     | Finite { sign = Neg; _ } -> negate ~context t
     | _ -> posate ~context t
 
+let sqrt ?(context = !Context.default) = function
+  | NaN -> Context.raise Invalid_operation context
+  | Inf Pos -> Inf Pos
+  | Finite { coef = "0"; sign; exp } ->
+    (* We need floor integer division by 2, whereas OCaml's [( / )] operator
+       acts as ceil division for [n < 0]; i.e. [-25 / 2 = -12]. Arithmetic
+       right shift acts as an alternative here, since we only divide by 2. *)
+    fix context (Finite { coef = "0"; sign; exp = exp asr 1 })
+  | Inf Neg
+  | Finite { sign = Neg; _ } -> Context.raise ~msg:"sqrt: x < 0" Invalid_operation context
+  | Finite { exp; coef; sign = Pos; _ } ->
+    let prec = context.prec + 1 in
+    (* See above for explanation on [asr] usage. *)
+    let e = exp asr 1 in
+    let c = Z.of_string coef in
+    let c, l = if exp land 1 <> 0 then
+      let c = Z.(c * Z.of_int 10) in
+      let l = (String.length coef asr 1) + 1 in
+      c, l
+    else
+      let l = (String.length coef + 1) asr 1 in
+      c, l
+    in
+    let shift = prec - l in
+    let c, exact = if shift >= 0 then (
+      let c = Z.(c * (of_int 100 ** shift)) in
+      c, true
+    ) else (
+      let neg_shift = - shift in
+      let c, r = Z.(div_rem c (of_int 100 ** (neg_shift))) in
+      c, not Z.(equal r zero)
+    ) in
+    let e = e - shift in
+    let n = Z.(of_int 10 ** prec) in
+    let rec aux n =
+      let q = Z.(c / n) in
+      if n <= q then
+        n
+      else
+        let n = Z.((n + q) / of_int 2) in
+        aux n
+    in
+    let n = aux n in
+    let exact = exact && Z.(n * n = c) in
+    let n, e = if exact then (
+      let n = if shift >= 0 then (
+        Z.(n / (of_int 10 ** shift))
+      ) else (
+        let neg_shift = - shift in
+        Z.(n * (of_int 10 ** neg_shift))
+      ) in
+      let e = e + shift in
+      n, e
+    ) else (
+      let n = if Z.(n mod (of_int 5) = of_int 0) then (
+        Z.(n + one)
+      ) else (
+        n
+      ) in
+      n, e
+    ) in
+    let ctx = { context with round = Half_even } in
+    fix ctx (Finite { sign = Pos; coef = Z.to_string n; exp = e })
+
 let ( ~- ) t = negate t
 let ( ~+ ) t = posate t
 
