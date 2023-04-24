@@ -1023,6 +1023,44 @@ let fma ?(context= !Context.default) ~first_mul ~then_add t =
   in
   add ~context product then_add
 
+let shift ?(context = !Context.default) t1 t2 =
+  match t1, t2 with
+  | NaN, _
+  | _, (NaN | Inf _) -> Context.raise Invalid_operation context
+  | Inf _, _ -> t1
+  | Finite f1, Finite f2 ->
+    if f2.exp <> 0 then
+      Context.raise Invalid_operation context
+    else (
+      let z2 = to_bigint t2 in
+      let prec_z = Z.of_int context.prec in
+      if not Z.((-prec_z) <= z2 && z2 <= prec_z) then (
+        Context.raise Invalid_operation context
+      ) else (
+        (* [z2] ([t2]) fits inside an int since it's between the precision values *)
+        let i2 = Z.to_int z2 in
+        let to_pad = context.prec - String.length f1.coef in
+        let rot_dig = if to_pad > 0 then (
+          String.init to_pad (fun _ -> '0') ^ f1.coef
+        ) else if to_pad < 0 then (
+          let neg_to_pad = - to_pad in
+          String.(sub f1.coef neg_to_pad (length f1.coef - neg_to_pad))
+        ) else (
+          f1.coef
+        ) in
+        let shifted = if i2 < 0 then (
+          let neg_i2 = - i2 in
+          String.(sub rot_dig 0 (length rot_dig - neg_i2))
+        ) else (
+          let shifted' = rot_dig ^ (String.init i2 (fun _ -> '0')) in
+          String.(sub shifted' (length shifted' - context.prec) context.prec)
+        ) in
+        let zero_stripped = strip_leading_zeros shifted in
+        let coef = if String.equal zero_stripped "" then "0" else zero_stripped in
+        Finite { coef; sign = f1.sign; exp = f1.exp }
+      )
+    )
+
 let compare t1 t2 = match t1, t2 with
   (* Deal with specials *)
   | Inf Pos, Inf Pos
