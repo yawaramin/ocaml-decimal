@@ -4,6 +4,26 @@ module C = D.Context
 module S = D.Signal
 module P = Parser
 
+let test_files = [
+  "data/abs.decTest";
+  "data/add.decTest";
+  "data/compare.decTest";
+  "data/copyabs.decTest";
+  "data/copynegate.decTest";
+  "data/divide.decTest";
+  "data/multiply.decTest";
+  "data/quantize.decTest";
+  "data/remainder.decTest";
+  "data/subtract.decTest";
+  "data/squareroot.decTest";
+  "data/scaleb.decTest";
+]
+
+let skip_tests = [
+  "scbx164";
+  "scbx165" (* Implementation specific, see https://bugs.python.org/msg95960 *)
+]
+
 let flag_was_set context flag =
   let flags = C.flags context in
   let flag_string = P.string_of_signal flag in
@@ -158,13 +178,22 @@ let eval_test_case {
       ~context
       ~expected
       D.(sqrt ~context (of_string ~context t))
+  | Scaleb, [t1; t2] ->
+    Printf.printf "scaleb(%s, %s) = %s" t1 t2 expected;
+    assert_decimal
+      ~context
+      ~expected
+      D.(scaleb ~context (of_string ~context t1) (of_string ~context t2))
   | _ -> ()
   end;
   List.iter (flag_was_set context) expected_signals
 
 let eval_test_line = function
   | P.Directive test_directive -> eval_test_directive test_directive
-  | Test_case test_case -> eval_test_case test_case
+  | Test_case test_case -> if List.exists (( = ) test_case.test_id) skip_tests then
+      ()
+    else
+      eval_test_case test_case
 
 let eval_test_file ((maj, min), test_lines) =
   Printf.printf "Test file version: %s.%s\n" maj min;
@@ -190,19 +219,7 @@ let () =
   S.set traps S.invalid_operation false;
   S.set traps S.overflow false;
 
-  List.iter eval_file [
-    "data/abs.decTest";
-    "data/add.decTest";
-    "data/compare.decTest";
-    "data/copyabs.decTest";
-    "data/copynegate.decTest";
-    "data/divide.decTest";
-    "data/multiply.decTest";
-    "data/quantize.decTest";
-    "data/remainder.decTest";
-    "data/subtract.decTest";
-    "data/squareroot.decTest";
-  ];
+  List.iter eval_file test_files;
   print_endline "";
   Json.test ();
 
