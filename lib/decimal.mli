@@ -337,6 +337,12 @@ val to_yojson : t -> [> `String of string]
 
     @since 0.3.0 *)
 
+val to_float : ?context:Context.t -> t -> float
+[@@alert lossy "Suffers from floating-point precision loss. Other serializations should be preferred."]
+(** [to_float ?context decimal] is the float representation of the [decimal]. This
+    suffers from floating-point precision loss; the other serializations should be
+    preferred. *)
+
 val pp : Format.formatter -> t -> unit
 
 val to_tuple : t -> int * string * int

@@ -507,6 +507,12 @@ let to_string ?(eng=false) ?(context= !Context.default) = function
 
 let to_yojson t = `String (to_string t)
 
+let to_float ?(context= !Context.default) = function
+  | NaN -> Float.nan
+  | Inf Pos -> Float.infinity
+  | Inf Neg -> Float.neg_infinity
+  | (Finite _) as d -> float_of_string (to_string ~context d)
+
 let pp f t = t |> to_string |> Format.pp_print_string f
 
 let z10 = Calc.z10
