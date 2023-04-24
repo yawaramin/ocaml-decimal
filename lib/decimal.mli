@@ -379,6 +379,10 @@ val round : ?n:int -> t -> t
     If [n] is [None], round [t] to the nearest integer. If [t] lies exactly
     halfway between two integers then it is rounded to the even integer. *)
 
+val shift : ?context:Context.t -> t -> t -> t
+(** [shift ?context t1 t2] shifts [t1] by [t2] decimal places, where [t2]
+    must be integral. *)
+
 val sign : t -> int
 (** [sign t] is [-1] if t is negative, and [1] otherwise. *)
 
