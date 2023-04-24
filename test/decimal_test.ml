@@ -17,6 +17,7 @@ let test_files = [
   "data/subtract.decTest";
   "data/squareroot.decTest";
   "data/scaleb.decTest";
+  "data/shift.decTest";
 ]
 
 let skip_tests = [
@@ -184,6 +185,12 @@ let eval_test_case {
       ~context
       ~expected
       D.(scaleb ~context (of_string ~context t1) (of_string ~context t2))
+  | Shift, [t1; t2] ->
+    Printf.printf "shift(%s, %s) = %s" t1 t2 expected;
+    assert_decimal
+      ~context
+      ~expected
+      D.(shift ~context (of_string ~context t1) (of_string ~context t2))
   | _ -> ()
   end;
   List.iter (flag_was_set context) expected_signals
