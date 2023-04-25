@@ -409,6 +409,9 @@ val fma : ?context:Context.t -> first_mul:t -> then_add:t -> t -> t
 val sqrt : ?context:Context.t -> t -> t
 (** [sqrt ?context x] is the square root of [x] *)
 
+val scaleb : ?context:Context.t -> t -> t -> t
+(** [scaleb ?context t1 t2] returns [t1] after scaling its exponent by [t2] *)
+
 val ( ~- ) : t -> t
 val ( ~+ ) : t -> t
 

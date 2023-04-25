@@ -1244,6 +1244,34 @@ let sqrt ?(context = !Context.default) = function
     let ctx = { context with round = Half_even } in
     fix ctx (Finite { sign = Pos; coef = Z.to_string n; exp = e })
 
+let scaleb ?(context = !Context.default) t1 t2 =
+  let check_precision () =
+    let liminf = Z.of_int ((-2) * (context.e_max + context.prec)) in
+    let z2 = to_bigint t2 in
+    if not Z.(liminf <= z2 && z2 <= (- liminf)) then (
+      Some (Context.raise Invalid_operation context)
+    ) else (
+      None
+    )
+  in
+  match t1, t2 with
+  | NaN, _
+  | _, (NaN | Inf _) -> Context.raise Invalid_operation context
+  | _, Finite { exp; _ } when exp <> 0 -> Context.raise Invalid_operation context
+  | Inf sign, Finite _ ->
+    (match check_precision () with
+    | Some nan -> nan
+    | None -> Inf sign)
+  | Finite f1, Finite _ ->
+    (match check_precision () with
+    | Some nan -> nan
+    | None ->
+      (* At this point we know [t2] fits in an integer *)
+      let i2 = Z.to_int (to_bigint t2) in
+      let tmp = Finite { sign = f1.sign; coef = f1.coef; exp = f1.exp + i2 } in
+      fix context tmp)
+
+
 let ( ~- ) t = negate t
 let ( ~+ ) t = posate t
 
