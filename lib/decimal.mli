@@ -301,7 +301,11 @@ val is_normal : ?context:Context.t -> t -> bool
 val is_finite : t -> bool
 val is_infinite : t -> bool
 val is_signed : t -> bool
+
 val is_integral : t -> bool
+(** [is_integral t] is whether [t] is an integer (whole number) or not.
+
+    @since 0.4.0 *)
 
 val of_bigint : Z.t -> t
 val of_int : int -> t
@@ -341,7 +345,9 @@ val to_float : ?context:Context.t -> t -> float
 [@@alert lossy "Suffers from floating-point precision loss. Other serializations should be preferred."]
 (** [to_float ?context decimal] is the float representation of the [decimal]. This
     suffers from floating-point precision loss; the other serializations should be
-    preferred. *)
+    preferred.
+
+    @since 0.4.0 *)
 
 val pp : Format.formatter -> t -> unit
 
@@ -387,7 +393,9 @@ val round : ?n:int -> t -> t
 
 val shift : ?context:Context.t -> t -> t -> t
 (** [shift ?context t1 t2] shifts [t1] by [t2] decimal places, where [t2]
-    must be integral. *)
+    must be integral.
+
+    @since 0.4.0 *)
 
 val sign : t -> int
 (** [sign t] is [-1] if t is negative, and [1] otherwise. *)
@@ -417,10 +425,14 @@ val fma : ?context:Context.t -> first_mul:t -> then_add:t -> t -> t
     product, then a final rounding is performed. *)
 
 val sqrt : ?context:Context.t -> t -> t
-(** [sqrt ?context x] is the square root of [x] *)
+(** [sqrt ?context x] is the square root of [x].
+
+    @since 0.4.0 *)
 
 val scaleb : ?context:Context.t -> t -> t -> t
-(** [scaleb ?context t1 t2] returns [t1] after scaling its exponent by [t2] *)
+(** [scaleb ?context t1 t2] returns [t1] after scaling its exponent by [t2].
+
+    @since 0.4.0 *)
 
 val ( ~- ) : t -> t
 val ( ~+ ) : t -> t
