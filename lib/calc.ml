@@ -16,8 +16,7 @@ let decimal_lshift_exact n e =
     Some n
   else if Z.(gt n zero) then
     Some Z.(n * pow z10 e)
-  else
-    (* val_n = largest power of 10 dividing n. *)
+  else (* val_n = largest power of 10 dividing n. *)
     let str_n = Z.(n |> abs |> to_string) in
     let val_n =
       String.length str_n - String.length (Str.replace_first zeros "" str_n)
@@ -26,10 +25,11 @@ let decimal_lshift_exact n e =
     if val_n < neg_e then None else Some Z.(n / pow z10 neg_e)
 
 let rec sqrt_nearest n a b =
-  if Z.(equal a b) then a
+  if Z.(equal a b) then
+    a
   else
     let neg_n = Z.neg n in
-    (sqrt_nearest [@tailcall]) n Z.(shift_right_trunc (a - neg_n /< a) 1) a
+    (sqrt_nearest [@tailcall]) n Z.(shift_right_trunc (a - (neg_n /< a)) 1) a
 
 (** [sqrt_nearest n a] is the closest integer to the square root of the positive
     integer [n]. [a] is an initial approximation of the square root. Any
@@ -47,12 +47,12 @@ let rshift_nearest x shift =
   let open Z in
   let b = one lsl shift in
   let q = x asr shift in
-  q + if z2 * x land (b - one) + q land one > b then one else zero
+  q + if (z2 * x land (b - one)) + (q land one) > b then one else zero
 
 let div_nearest a b =
   let open Z in
   let q, r = div_rem a b in
-  q + if z2 * r + q land one > b then one else zero
+  q + if (z2 * r) + (q land one) > b then one else zero
 
 (** [ilog ?l x m] is the integer approximation to [m * log (x / m)], with
     absolute error boundable in terms only of [x / m].
@@ -62,7 +62,7 @@ let div_nearest a b =
     between the approximation and the exact result is at most 22. For [l = 8]
     and [1.0 <= x / m <= 10.0] the difference is at most 15. In both cases
     these are upper bounds on the error; it will usually be much smaller. *)
-let ilog ?(l=8) x m =
+let ilog ?(l = 8) x m =
   let l_minus r = l - !r in
   let r_minus_l r = !r - l in
   let y = ref Z.(x - m) in
@@ -70,11 +70,13 @@ let ilog ?(l=8) x m =
   (* argument reduction; r = number of reductions performed *)
   let r = ref 0 in
   while
-    !r <= l && Z.(abs !y lsl l_minus r >= m) ||
-    !r > l && Z.(abs !y asr r_minus_l r >= m) do
-    y := div_nearest
-      Z.((m * !y) lsl 1)
-      Z.(m + sqrt_nearest (m * (m + rshift_nearest !y !r)) m);
+    (!r <= l && Z.(abs !y lsl l_minus r >= m))
+    || (!r > l && Z.(abs !y asr r_minus_l r >= m))
+  do
+    y :=
+      div_nearest
+        Z.((m * !y) lsl 1)
+        Z.(m + sqrt_nearest (m * (m + rshift_nearest !y !r)) m);
     incr r
   done;
 
@@ -85,7 +87,7 @@ let ilog ?(l=8) x m =
   let t = -(-10 * String.length (Z.to_string m) / 3 * l) in
   let yshift = rshift_nearest y r in
   let w = ref (div_nearest m (Z.of_int t)) in
-  for k = (t - 1) downto 0 do
+  for k = t - 1 downto 0 do
     let zk = Z.of_int k in
     w := Z.(div_nearest m zk - div_nearest (yshift * !w) m)
   done;
@@ -113,7 +115,8 @@ let log10_digits p =
       let check = Str.regexp (String.make !extra '0' ^ "$") in
       if Str.string_match check !digits 0 then begin
         extra := !extra + 3
-      end else begin
+      end
+      else begin
         continue := false
       end
     done;
@@ -121,7 +124,8 @@ let log10_digits p =
        digit. *)
     log10_digits := Str.replace_first unreliable "" !digits;
     return ()
-  end else
+  end
+  else
     return ()
 
 (** [dlog10 c e p] is an integer approximation of [10**p * log10 (c * 10**e)],
@@ -142,11 +146,15 @@ let dlog10 c e p =
       let m = Z.pow z10 p in
       let k = e + p - f in
       let c =
-        if k >= 0 then Z.(c * pow z10 k)
-        else div_nearest c (Z.pow z10 ~-k)
+        if k >= 0 then
+          Z.(c * pow z10 k)
+        else
+          div_nearest c (Z.pow z10 ~-k)
       in
-      let log_d = ilog c m in (* error < 5 + 22 = 27 *)
-      let log_10 = log10_digits p in (* error < 1 *)
+      let log_d = ilog c m in
+      (* error < 5 + 22 = 27 *)
+      let log_10 = log10_digits p in
+      (* error < 1 *)
       div_nearest Z.(log_d * m) log_10, Z.(of_int f * m)
     else
       Z.zero, div_nearest (Z.of_int f) (Z.pow z10 ~-p)
@@ -173,13 +181,15 @@ let dlog c e p =
     if p > 0 then
       let k = e + p - f in
       let c =
-        if k >= 0 then Z.(c * pow z10 k)
-        else div_nearest c (Z.pow z10 ~-k) (* error of <= 0.5 in c *)
+        if k >= 0 then
+          Z.(c * pow z10 k)
+        else
+          div_nearest c (Z.pow z10 ~-k)
+        (* error of <= 0.5 in c *)
       in
       (* ilog magnifies existing error in [c] by a factor of at most 10 *)
       ilog c (Z.pow z10 p)
-    else
-      (* [p <= 0]: just approximate the whole thing by 0; error < 2.31 *)
+    else (* [p <= 0]: just approximate the whole thing by 0; error < 2.31 *)
       Z.zero
   in
   let extra = (f |> abs |> string_of_int |> String.length) - 1 in
@@ -203,23 +213,23 @@ let dlog c e p =
     [m > 0] and such that [x / m] is small in absolute value. For
     [0 <= x / m <= 2.4], the absolute error in the result is bounded by 60 (and
     is usually much smaller). *)
-let iexp ?(l=8) x m =
+let iexp ?(l = 8) x m =
   (* Find [r] such that [x / 2**r/m <= 2 ** ~-l] *)
-  let r = Z.(numbits (x lsl l /< m)) in
+  let r = Z.(numbits ((x lsl l) /< m)) in
 
   (* Taylor series. [(2 ** l)**t > m] *)
   let t = -(-10 * String.length (Z.to_string m) / 3 * l) in
   let y = ref (div_nearest x (Z.of_int t)) in
   let mshift = ref Z.(m lsl r) in
-  for i = (t - 1) downto 0 do
+  for i = t - 1 downto 0 do
     let mshift = !mshift in
-    y := div_nearest Z.(x * mshift + !y) Z.(mshift * of_int i)
+    y := div_nearest Z.((x * mshift) + !y) Z.(mshift * of_int i)
   done;
 
   (* Expansion *)
-  for k = (r - 1) downto -1 do
+  for k = r - 1 downto -1 do
     let k_plus_2 = k + 2 in
-    mshift := Z.(m lsl k_plus_2);
+    (mshift := Z.(m lsl k_plus_2));
     let y_val = !y in
     let mshift = !mshift in
     y := div_nearest Z.(y_val * (y_val + mshift)) mshift
@@ -263,8 +273,7 @@ let dexp c e p =
   let rem = div_nearest rem (Z.pow z10 extra) in
 
   (* error in result of [iexp < 120]; error after division < 0.62 *)
-  div_nearest (iexp rem (Z.pow z10 p)) (Z.of_int 1_000),
-  Z.to_int quot - p + 3
+  div_nearest (iexp rem (Z.pow z10 p)) (Z.of_int 1_000), Z.to_int quot - p + 3
 
 (** [dpower xc xe yc ye p] is [x ** y], given integers [xc], [xe], [yc], and
     [ye] representing decimals [x = xc * 10**xe] and [y = yc * 10**ye]. Returns
@@ -301,7 +310,7 @@ let dpower xc xe yc ye p =
     if Z.(equal pc zero) then
       (* we prefer a result that isn't exactly 1; this makes it easier to
          compute a correctly rounded result in [pow] *)
-      if ((xc |> Z.to_string |> String.length) + xe >= 1) = Z.(gt yc zero) then
+      if (xc |> Z.to_string |> String.length) + xe >= 1 = Z.(gt yc zero) then
         let p_minus_1 = p - 1 in
         Z.(pow z10 p_minus_1 + one), 1 - p
       else
@@ -316,20 +325,18 @@ let dpower xc xe yc ye p =
 (** [log10_lb ?correction c] is a lower bound for [100 * log10 c] for a positive
     integer [c]. *)
 let log10_lb
-  ?(correction=[
-    '1', 100;
-    '2', 70;
-    '3', 53;
-    '4', 40;
-    '5', 31;
-    '6', 23;
-    '7', 16;
-    '8', 10;
-    '9', 5;
-  ])
-  c =
+    ?(correction =
+      [ '1', 100;
+        '2', 70;
+        '3', 53;
+        '4', 40;
+        '5', 31;
+        '6', 23;
+        '7', 16;
+        '8', 10;
+        '9', 5 ]) c =
   if Z.(Compare.(c <= zero)) then
     invalid_arg "log10_lb: argument should be non-negative"
   else
     let str_c = Z.to_string c in
-    100 * String.length str_c - List.assoc str_c.[0] correction
+    (100 * String.length str_c) - List.assoc str_c.[0] correction

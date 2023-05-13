@@ -5,7 +5,7 @@ from Python
 [`decimal` module](https://github.com/python/cpython/blob/23831a7a90956e38b7d70304bb6afe30d37936de/Lib/_pydecimal.py).
 It uses Zarith to do biginteger arithmetic.
 
-Opam: https://opam.ocaml.org/packages/decimal/
+Opam: https://ocaml.org/p/decimal
 
 ## License
 
