@@ -325,7 +325,7 @@ val to_rational : t -> Q.t
 val to_string : ?eng:bool -> ?context:Context.t -> t -> string
 
 val to_decimal_string : t -> string
-(** [to_decimal_string t] is the decimal representation of [t], i.e. the only characters in the string are ['0'..'9'] and ['.']. *)
+(** [to_decimal_string t] is the decimal representation of [t], i.e. assuming [t] is finite, the only characters in the string are ['0'..'9'] and ['.']. *)
 
 val to_yojson : t -> [> `String of string]
 (** [to_yojson t] is the JSON representation of decimal value [t]. Note that it
