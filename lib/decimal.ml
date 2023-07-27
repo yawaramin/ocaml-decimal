@@ -490,6 +490,26 @@ let to_string ?(eng = false) ?(context = !Context.default) = function
     in
     Sign.to_string sign ^ intpart ^ fracpart ^ exp
 
+let to_decimal_string = function
+  | Inf sign -> Sign.to_string sign ^ "Infinity"
+  | NaN -> "NaN"
+  | Finite { sign; coef; exp } ->
+    (* Number of digits of coef to left of decimal point *)
+    let leftdigits = exp + String.length coef in
+
+    let intpart, fracpart =
+      if leftdigits <= 0 then
+        "0", "." ^ String.make ~-leftdigits '0' ^ coef
+      else
+        let len_coef = String.length coef in
+        if leftdigits >= len_coef then
+          coef ^ String.make (leftdigits - len_coef) '0', ""
+        else
+          ( String.sub coef 0 leftdigits,
+            "." ^ String.sub coef leftdigits (len_coef - leftdigits) )
+    in
+    Sign.to_string sign ^ intpart ^ fracpart
+
 let to_yojson t = `String (to_string t)
 
 let to_float ?(context = !Context.default) = function
