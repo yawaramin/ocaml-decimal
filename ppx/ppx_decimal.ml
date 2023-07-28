@@ -9,7 +9,7 @@ let expand loc str =
   pexp_apply ~loc (mk_of_string ~loc)
     [Nolabel, pexp_constant ~loc @@ Pconst_string (str, loc, None)]
 
-let int_rule = Context_free.Rule.constant Integer 'r' expand
-let float_rule = Context_free.Rule.constant Float 'r' expand
+let int_rule = Context_free.Rule.constant Integer 'm' expand
+let float_rule = Context_free.Rule.constant Float 'm' expand
 
 let () = Driver.V2.register_transformation "ppx-decimal" ~rules: [ int_rule; float_rule ]
