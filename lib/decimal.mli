@@ -322,10 +322,13 @@ val to_bigint : t -> Z.t
 
 val to_bool : t -> bool
 val to_rational : t -> Q.t
-val to_string : ?eng:bool -> ?context:Context.t -> t -> string
 
-val to_decimal_string : t -> string
-(** [to_decimal_string t] is the decimal representation of [t], i.e. assuming [t] is finite, the only characters in the string are ['0'..'9'] and ['.']. *)
+val to_string :
+  ?format:[`standard | `eng | `plain] -> ?context:Context.t -> t -> string
+(** [to_string ?format ?context t] is the string representation of [t]. [format] is optional, defauling to [`standard], with the options being:
+  - [`standard] - numbers are represented as decimals until 6 decimal points, at which point they are represented as scientific notation
+  - [`eng] - engineering notation, where the exponent of 10 is always a multiple of 3
+  - [`plain] - "normal" decimal notation *)
 
 val to_yojson : t -> [> `String of string]
 (** [to_yojson t] is the JSON representation of decimal value [t]. Note that it
