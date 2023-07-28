@@ -19,3 +19,11 @@ the Python decimal module.")
     (angstrom (and (>= 0.15.0) (< 1.0.0) :with-test))
     (ocaml (>= 4.08.0))
     (zarith (and (>= 1.10) (< 2.0.0)))))
+
+(package
+  (name ppx-decimal)
+  (synopsis "A ppx for decimal literals")
+  (description "A ppx rewriter for decimal literals using the decimal library.")
+  (depends
+    (decimal (= :version))
+    (ppxlib (>= 0.26.0))))
