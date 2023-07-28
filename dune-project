@@ -21,7 +21,7 @@ the Python decimal module.")
     (zarith (and (>= 1.10) (< 2.0.0)))))
 
 (package
-  (name ppx-decimal)
+  (name ppx_decimal)
   (synopsis "A ppx for decimal literals")
   (description "A ppx rewriter for decimal literals using the decimal library.")
   (depends
