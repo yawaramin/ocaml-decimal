@@ -1,0 +1,6 @@
+(library
+ (name ppx_decimal)
+ (public_name ppx_decimal)
+ (kind ppx_rewriter)
+ (libraries ppxlib decimal)
+ (ppx_runtime_libraries decimal))
