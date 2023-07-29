@@ -296,7 +296,14 @@ val is_integral : t -> bool
 
 val of_bigint : Z.t -> t
 val of_int : int -> t
+
 val of_string : ?context:Context.t -> string -> t
+(** [of_string ?context str] is [str] parsed into a decimal value with [context]
+    (or the default context if none provided).
+
+    Note that a convenience syntax, e.g. [1.1m], is provided to write decimal
+    literals in source code. See the readme for instructions on how to use it via
+    the [ppx_decimal] PPX. *)
 
 val of_yojson :
   [> `Int of int | `Float of float | `String of string] -> (t, string) result
