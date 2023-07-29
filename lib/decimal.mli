@@ -310,9 +310,9 @@ val of_yojson :
     @since 0.3.0 *)
 
 val of_float : ?context:Context.t -> float -> t
-  [@@alert
-    lossy
-      "Suffers from floating-point precision loss. Other constructors should be preferred."]
+[@@alert
+  lossy
+    "Suffers from floating-point precision loss. Other constructors should be preferred."]
 (** [of_float ?context float] is the decimal representation of the [float]. This
     suffers from floating-point precision loss; the other constructors should be
     preferred. *)
@@ -325,10 +325,14 @@ val to_rational : t -> Q.t
 
 val to_string :
   ?format:[`standard | `eng | `plain] -> ?context:Context.t -> t -> string
-(** [to_string ?format ?context t] is the string representation of [t]. [format] is optional, defaulting to [`standard], with the options being:
-  - [`standard] - numbers are represented as decimals until 6 decimal points, at which point they are represented as scientific notation
-  - [`eng] - engineering notation, where the exponent of 10 is always a multiple of 3
-  - [`plain] - "normal" decimal notation *)
+(** [to_string ?format ?context t] is the string representation of [t]. [format]
+    is optional, with the options being:
+
+  - [`standard]: the default. Numbers are represented as decimals until 6 decimal
+    points, at which point they are represented as scientific notation
+  - [`eng]: engineering notation, where the exponent of 10 is always a multiple
+    of 3
+  - [`plain]: 'normal' decimal notation *)
 
 val to_yojson : t -> [> `String of string]
 (** [to_yojson t] is the JSON representation of decimal value [t]. Note that it
@@ -337,9 +341,9 @@ val to_yojson : t -> [> `String of string]
     @since 0.3.0 *)
 
 val to_float : ?context:Context.t -> t -> float
-  [@@alert
-    lossy
-      "Suffers from floating-point precision loss. Other serializations should be preferred."]
+[@@alert
+  lossy
+    "Suffers from floating-point precision loss. Other serializations should be preferred."]
 (** [to_float ?context decimal] is the float representation of the [decimal]. This
     suffers from floating-point precision loss; the other serializations should be
     preferred.
@@ -383,7 +387,7 @@ val quantize : ?context:Context.t -> ?round:Context.round -> exp:t -> t -> t
     the same as that of [exp]. *)
 
 val round : ?n:int -> t -> t
-  [@@alert exn "Invalid_argument if t is ∞ or NaN"]
+[@@alert exn "Invalid_argument if t is ∞ or NaN"]
 (** [round ?n t] is [t] rounded to the nearest integer, or to a given precision.
     If [n] is [None], round [t] to the nearest integer. If [t] lies exactly
     halfway between two integers then it is rounded to the even integer. *)
@@ -437,10 +441,10 @@ val ( = ) : t -> t -> bool
 val ( <> ) : t -> t -> bool
 
 val ( == ) : t -> t -> bool
-  [@@alert phys_eq "Physical equality of decimals is rarely useful"]
+[@@alert phys_eq "Physical equality of decimals is rarely useful"]
 
 val ( != ) : t -> t -> bool
-  [@@alert phys_eq "Physical equality of decimals is rarely useful"]
+[@@alert phys_eq "Physical equality of decimals is rarely useful"]
 
 val ( < ) : t -> t -> bool
 val ( > ) : t -> t -> bool

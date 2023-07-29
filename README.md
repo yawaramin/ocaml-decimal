@@ -15,24 +15,32 @@ for the sake of simplicity, as it is a derived work of the Python `decimal` modu
 
 ## Examples
 
+See next section (below) for `dune` instructions.
+
     $ opam install decimal # if trying out
     # (* if trying out: *)
       #require "decimal";;
-    # (* for convenience *)
-      module D = Decimal
-      let i = D.of_int
-      let s = D.of_string;;
+      #require "ppx_decimal";;
     # (* tell the REPL how to display decimals *)
-      #install_printer D.pp;;
-    #
-      D.(s "0.1" + s "0.2");;
-    - : D.t = 0.3
+      #install_printer Decimal.pp;;
+    # (* PPX gives convenience literal syntax *)
+      Decimal.(0.1m + 0.2m);;
+    - : Decimal.t = 0.3
     # (* default precision is 32 *)
-      D.(i 1 / i 3);;
-    - : D.t = 0.33333333333333333333333333333333
+      Decimal.(of_int 1 / of_int 3);;
+    - : Decimal.t = 0.33333333333333333333333333333333
     # (* round to decimal places: *)
-      D.(round ~n:2 (of_int 22 / of_int 7));;
-    - : D.t = 3.14
+      Decimal.(round ~n:2 (of_int 22 / of_int 7));;
+    - : Decimal.t = 3.14
+
+## Use with dune
+
+In your `dune` file's `executable` or similar stanza:
+
+```
+ (libraries decimal)
+ (preprocess (pps ppx_decimal))
+```
 
 ## Dev
 
