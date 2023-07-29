@@ -325,7 +325,7 @@ val to_rational : t -> Q.t
 
 val to_string :
   ?format:[`standard | `eng | `plain] -> ?context:Context.t -> t -> string
-(** [to_string ?format ?context t] is the string representation of [t]. [format] is optional, defauling to [`standard], with the options being:
+(** [to_string ?format ?context t] is the string representation of [t]. [format] is optional, defaulting to [`standard], with the options being:
   - [`standard] - numbers are represented as decimals until 6 decimal points, at which point they are represented as scientific notation
   - [`eng] - engineering notation, where the exponent of 10 is always a multiple of 3
   - [`plain] - "normal" decimal notation *)
