@@ -2,7 +2,7 @@
 
 (name decimal)
 
-(version v0.3.1)
+(version v1.0.0)
 
 (generate_opam_files true)
 
