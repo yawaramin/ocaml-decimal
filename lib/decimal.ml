@@ -448,7 +448,7 @@ let to_bool = function
   | Finite { coef = "0"; _ } -> false
   | _ -> true
 
-let to_string ?(eng = false) ?(context = !Context.default) = function
+let to_string ?(format = `standard) ?(context = !Context.default) = function
   | Inf sign -> Sign.to_string sign ^ "Infinity"
   | NaN -> "NaN"
   | Finite { sign; coef; exp } ->
@@ -458,15 +458,20 @@ let to_string ?(eng = false) ?(context = !Context.default) = function
     (* Number of digits of coef to left of decimal point in mantissa of
        output string (i.e. after adjusting for exponent *)
     let dotplace =
-      if exp <= 0 && leftdigits > -6 then (* No exponent required *)
-        leftdigits
-      else if not eng then
-        (* Usual scientific notation: 1 digit on left of point *)
-        1
-      else if coef = "0" then (* Engineering notation, zero *)
-        ((leftdigits + 1) mod 3) - 1
-      else (* Engineering notation, nonzero *)
-        ((leftdigits - 1) mod 3) + 1
+      match format with
+      | `standard ->
+        if exp <= 0 && leftdigits > -6 then (* No exponent required *)
+          leftdigits
+        else (* Usual scientific notation: 1 digit on left of point *)
+          1
+      | `eng ->
+        if exp <= 0 && leftdigits > -6 then (* No exponent required *)
+          leftdigits
+        else if coef = "0" then (* Engineering notation, zero *)
+          ((leftdigits + 1) mod 3) - 1
+        else (* Engineering notation, nonzero *)
+          ((leftdigits - 1) mod 3) + 1
+      | `plain -> leftdigits
     in
     let intpart, fracpart =
       if dotplace <= 0 then
@@ -480,6 +485,7 @@ let to_string ?(eng = false) ?(context = !Context.default) = function
             "." ^ String.sub coef dotplace (len_coef - dotplace) )
     in
     let exp =
+      (* When format is [`plain], this is guaranteed to be 0 *)
       let value = leftdigits - dotplace in
       if value = 0 then
         ""
