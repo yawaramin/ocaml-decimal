@@ -6,7 +6,7 @@ publish_doc : odoc
 
 .PHONY : publish_opam
 publish_opam :
-	@dune-release distrib && dune-release publish distrib && dune-release opam pkg && dune-release opam submit
+	@dune-release distrib --skip-lint && dune-release publish distrib && dune-release opam pkg && dune-release opam submit
 
 .PHONY : doc
 doc : odoc
