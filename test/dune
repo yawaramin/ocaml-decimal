@@ -1,5 +1,6 @@
 (test
  (name decimal_test)
+ (package decimal)
  (deps
   (glob_files data/*.decTest))
  (libraries alcotest angstrom decimal))
