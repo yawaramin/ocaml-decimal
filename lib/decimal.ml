@@ -420,7 +420,7 @@ let of_float ?(context = !Context.default) value =
     let sign = if Float.sign_bit value then Sign.Neg else Pos in
     let str = value |> Float.abs |> string_of_float in
     match String.split_on_char '.' str with
-    | [coef; ""] -> Finite { sign; coef; exp = 1 }
+    | [coef; ""] -> Finite { sign; coef; exp = 0 }
     | [coef; frac] ->
       Finite
         { sign;

@@ -1,9 +1,10 @@
 open Alcotest
+module Float = Stdlib.Float
 
 let decimal = (module Decimal : TESTABLE with type t = Decimal.t)
 
-let test () =
-  run "Decimal" [
+let tests =
+  [
     "of_yojson", [
       test_case "int" `Quick begin fun () ->
         `Int 0
