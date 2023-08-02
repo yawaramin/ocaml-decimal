@@ -195,6 +195,6 @@ let () =
 
   List.iter eval_file test_files;
   print_endline "";
-  Json.test ();
+  Alcotest.run "Decimal" (Json.tests @ Float.tests);
 
   print_endline "\nOK."
