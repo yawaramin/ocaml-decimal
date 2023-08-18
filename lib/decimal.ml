@@ -366,7 +366,9 @@ let parts_of value =
     invalid_arg value
 
 let leading_zeros = Str.regexp "^0+"
+let trailing_zeros = Str.regexp "0+$"
 let strip_leading_zeros = Str.replace_first leading_zeros ""
+let strip_trailing_zeros = Str.replace_first trailing_zeros ""
 
 let of_string ?(context = !Context.default) value =
   match parts_of value with
@@ -418,10 +420,10 @@ let of_float ?(context = !Context.default) value =
     zero
   else
     let sign = if Float.sign_bit value then Sign.Neg else Pos in
-    let str = value |> Float.abs |> string_of_float in
+    let str = Printf.sprintf "%.*f" context.prec (value |> Float.abs) in
     match String.split_on_char '.' str with
-    | [coef; ""] -> Finite { sign; coef; exp = 0 }
     | [coef; frac] ->
+      let frac = strip_trailing_zeros frac in
       Finite
         { sign;
           coef = strip_leading_zeros coef ^ frac;
@@ -800,17 +802,19 @@ let add ?(context = !Context.default) t1 t2 =
     (* Neither is zero *)
     | _ -> (
       let finite1, finite2 = normalize ~prec:context.prec finite1 finite2 in
+      (* Normalization can prepend leading zeros, so we parse the coefficients as bigints *)
+      let int1 = Z.of_string finite1.coef in
+      let int2 = Z.of_string finite2.coef in
       match finite1.sign, finite2.sign with
       (* Equal and opposite *)
-      | (Pos, Neg | Neg, Pos) when finite1.coef = finite2.coef ->
+      | (Pos, Neg | Neg, Pos) when Z.equal int1 int2 ->
         fix context
           (Finite
              { sign = (if negativezero then Neg else Pos); coef = "0"; exp })
       | _ ->
-        let int1 = Z.of_string finite1.coef in
-        let int2 = Z.of_string finite2.coef in
         let sign, int =
-          match finite1.sign, finite2.sign, Z.compare int1 int2 with
+          let c = Z.compare int1 int2 in
+          match finite1.sign, finite2.sign, c with
           | Pos, Pos, _ -> Sign.Pos, Z.add int1 int2
           | Neg, Neg, _ -> Neg, Z.add int1 int2
           | Pos, Neg, 1 -> Pos, Z.sub int1 int2
@@ -1063,7 +1067,7 @@ let compare t1 t2 =
       let padded1 = zero_pad_right (exp1 - exp2) coef1 in
       let padded2 = zero_pad_right (exp2 - exp1) coef2 in
       begin
-        match compare padded1 padded2 with
+        match String.compare padded1 padded2 with
         | 0 -> 0
         | -1 -> -Sign.to_int sign
         | 1 -> Sign.to_int sign
