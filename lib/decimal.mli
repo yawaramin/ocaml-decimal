@@ -14,19 +14,19 @@
 (** This is an implementation of decimal floating point arithmetic based on the
     General Decimal Arithmetic Specification:
 
-    {{: http://speleotrove.com/decimal/decarith.html}}
+    {:http://speleotrove.com/decimal/decarith.html}
 
     and IEEE standard 854-1987:
 
-    {{: http://en.wikipedia.org/wiki/IEEE_854-1987}}
+    {:http://en.wikipedia.org/wiki/IEEE_854-1987}
 
     Decimal floating point has finite precision with arbitrarily large bounds.
     The purpose of this module is to support arithmetic using familiar
     "schoolhouse" rules and to avoid some of the tricky representation issues
-    associated with binary floating point.  The package is especially useful
-    for financial applications or for contexts where users have expectations
-    that are at odds with binary floating point (for instance, in binary
-    floating point, 1.00 mod 0.1 gives 0.09999999999999995 instead of 0.0;
+    associated with binary floating point. The package is especially useful for
+    financial applications or for contexts where users have expectations that
+    are at odds with binary floating point (for instance, in binary floating
+    point, 1.00 mod 0.1 gives 0.09999999999999995 instead of 0.0;
     [Decimal.(of_string "1.00" mod of_string "0.1")] returns the expected
     "0.00"). *)
 
@@ -53,6 +53,7 @@ module Signal : sig
   (** [to_string id] is [id]'s name. *)
 
   val pp : Format.formatter -> array -> unit
+  [@@ocaml.toplevel_printer]
   (** [pp f array] pretty-prints the signal array. *)
 
   val clamped : id
@@ -60,11 +61,11 @@ module Signal : sig
 
       This occurs and signals clamped if the exponent of a result has been
       altered in order to fit the constraints of a specific concrete
-      representation.  This may occur when the exponent of a zero result would
-      be outside the bounds of a representation, or when a large normal number
+      representation. This may occur when the exponent of a zero result would be
+      outside the bounds of a representation, or when a large normal number
       would have an encoded exponent that cannot be represented. In this latter
-      case, the exponent is reduced to fit and the corresponding number of
-      zero digits are appended to the coefficient ("fold-down"). *)
+      case, the exponent is reduced to fit and the corresponding number of zero
+      digits are appended to the coefficient ("fold-down"). *)
 
   val invalid_operation : id
   (** An invalid operation was performed.
@@ -94,8 +95,8 @@ module Signal : sig
   val div_by_zero : id
   (** Division by 0.
 
-      This occurs and signals division-by-zero if division of a finite number
-      by zero was attempted (during a divide-integer or divide operation, or a
+      This occurs and signals division-by-zero if division of a finite number by
+      zero was attempted (during a divide-integer or divide operation, or a
       power operation with negative right-hand operand), and the dividend was
       not zero.
 
@@ -107,15 +108,15 @@ module Signal : sig
   (** Cannot perform the division adequately.
 
       This occurs and signals invalid-operation if the integer result of a
-      divide-integer or remainder operation had too many digits (would be
-      longer than precision).  The result is [NaN]. *)
+      divide-integer or remainder operation had too many digits (would be longer
+      than precision). The result is [NaN]. *)
 
   val div_undefined : id
   (** Undefined result of division.
 
       This occurs and signals invalid-operation if division by zero was
       attempted (during a divide-integer, divide, or remainder operation), and
-      the dividend is also zero.  The result is [NaN]. *)
+      the dividend is also zero. The result is [NaN]. *)
 
   val inexact : id
   (** Had to round, losing information.
@@ -127,7 +128,7 @@ module Signal : sig
       determine if a given operation (or sequence of operations) was inexact. *)
 
   val rounded : id
-  (** Number got rounded (not  necessarily changed during rounding).
+  (** Number got rounded (not necessarily changed during rounding).
 
       This occurs and signals rounded whenever the result of an operation is
       rounded (that is, some zero or non-zero digits were discarded from the
@@ -181,7 +182,8 @@ module Signal : sig
       In all cases, Inexact, Rounded, and Subnormal will also be raised. *)
 end
 
-(** Settings that control precision, rounding mode, exceptional behaviour, etc. *)
+(** Settings that control precision, rounding mode, exceptional behaviour, etc.
+*)
 module Context : sig
   type round =
     | Down  (** Round towards 0; truncate. *)
@@ -191,8 +193,8 @@ module Context : sig
     | Half_down
         (** Round up if last significant digit is > 5, else round down. *)
     | Half_even
-        (** Round up if last significant digit is > 5 or next-to-last significant
-      digit is odd, else round down. *)
+        (** Round up if last significant digit is > 5 or next-to-last
+            significant digit is odd, else round down. *)
     | Ceiling  (** Round up if last significant digit is > 0, else no change. *)
     | Floor  (** Round down if last significant digit is > 0, else no change. *)
     | Zero_five_up  (** Round zero or five away from 0. *)
@@ -200,7 +202,8 @@ module Context : sig
   val string_of_round : round -> string
 
   type t
-  (** Controls, precision, rounding, traps (exception handling), etc. settings. *)
+  (** Controls, precision, rounding, traps (exception handling), etc. settings.
+  *)
 
   val default : t ref
   (** [default] is a reference to the default thread-local context. *)
@@ -269,11 +272,13 @@ module Context : sig
   (** [e_top t] is the maximum exponent of context [t]. *)
 
   val pp : Format.formatter -> t -> unit
+  [@@ocaml.toplevel_printer]
   (** [pp f t] pretty-prints the context [t]. *)
 end
 
 type t
-(** A decimal floating-point number. All operations are done in radix (base) 10. *)
+(** A decimal floating-point number. All operations are done in radix (base) 10.
+*)
 
 include Map.OrderedType with type t := t
 include Hashtbl.HashedType with type t := t
@@ -302,8 +307,8 @@ val of_string : ?context:Context.t -> string -> t
     (or the default context if none provided).
 
     Note that a convenience syntax, e.g. [1.1m], is provided to write decimal
-    literals in source code. See the readme for instructions on how to use it via
-    the [ppx_decimal] PPX. *)
+    literals in source code. See the readme for instructions on how to use it
+    via the [ppx_decimal] PPX. *)
 
 val of_yojson :
   [> `Int of int | `Float of float | `String of string] -> (t, string) result
@@ -335,11 +340,11 @@ val to_string :
 (** [to_string ?format ?context t] is the string representation of [t]. [format]
     is optional, with the options being:
 
-  - [`standard]: the default. Numbers are represented as decimals until 6 decimal
-    points, at which point they are represented as scientific notation
-  - [`eng]: engineering notation, where the exponent of 10 is always a multiple
-    of 3
-  - [`plain]: 'normal' decimal notation *)
+    - [`standard]: the default. Numbers are represented as decimals until 6
+      decimal points, at which point they are represented as scientific notation
+    - [`eng]: engineering notation, where the exponent of 10 is always a
+      multiple of 3
+    - [`plain]: 'normal' decimal notation *)
 
 val to_yojson : t -> [> `String of string]
 (** [to_yojson t] is the JSON representation of decimal value [t]. Note that it
@@ -351,17 +356,17 @@ val to_float : ?context:Context.t -> t -> float
 [@@alert
   lossy
     "Suffers from floating-point precision loss. Other serializations should be preferred."]
-(** [to_float ?context decimal] is the float representation of the [decimal]. This
-    suffers from floating-point precision loss; the other serializations should be
-    preferred.
+(** [to_float ?context decimal] is the float representation of the [decimal].
+    This suffers from floating-point precision loss; the other serializations
+    should be preferred.
 
     @since 0.4.0 *)
 
-val pp : Format.formatter -> t -> unit
+val pp : Format.formatter -> t -> unit [@@ocaml.toplevel_printer]
 
 val to_tuple : t -> int * string * int
-(** [to_tuple t] is a representation of the internals of [t] as a triple
-    of [(sign, coefficient, exponent)] for debugging purposes. *)
+(** [to_tuple t] is a representation of the internals of [t] as a triple of
+    [(sign, coefficient, exponent)] for debugging purposes. *)
 
 val abs : ?round:bool -> ?context:Context.t -> t -> t
 (** [abs ?round ?context t] is the absolute value of [t], rounded only if
@@ -400,8 +405,8 @@ val round : ?n:int -> t -> t
     halfway between two integers then it is rounded to the even integer. *)
 
 val shift : ?context:Context.t -> t -> t -> t
-(** [shift ?context t1 t2] shifts [t1] by [t2] decimal places, where [t2]
-    must be integral.
+(** [shift ?context t1 t2] shifts [t1] by [t2] decimal places, where [t2] must
+    be integral.
 
     @since 0.4.0 *)
 
