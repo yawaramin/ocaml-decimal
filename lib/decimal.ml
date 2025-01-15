@@ -408,27 +408,7 @@ let of_bigint value =
     }
 
 let of_float ?(context = !Context.default) value =
-  if value = Float.nan then
-    nan
-  else if value = Float.infinity then
-    infinity
-  else if value = Float.neg_infinity then
-    neg_infinity
-  else if value = 0. then
-    zero
-  else
-    let sign = if Float.sign_bit value then Sign.Neg else Pos in
-    let str = value |> Float.abs |> string_of_float in
-    match String.split_on_char '.' str with
-    | [coef; ""] -> Finite { sign; coef; exp = 0 }
-    | [coef; frac] ->
-      Finite
-        { sign;
-          coef = strip_leading_zeros coef ^ frac;
-          exp = -String.length frac
-        }
-    | _ ->
-      Context.raise ~msg:(Sign.to_string sign ^ str) Conversion_syntax context
+  of_string ~context (Printf.sprintf "%f" value)
 
 let of_yojson = function
   | `Int i -> Ok (of_int i)
